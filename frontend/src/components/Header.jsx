@@ -37,7 +37,7 @@ const Header = () => {
             to="/" 
             className="text-xl sm:text-2xl font-bold tracking-tight hover:text-gray-300 transition-colors duration-300"
           >
-            RK Saree & Fashion Hub
+            RK Saree Center & Fashion Store
           </Link>
 
           {/* Desktop Menu */}

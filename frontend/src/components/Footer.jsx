@@ -7,8 +7,8 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand Section */}
           <div className="col-span-1 md:col-span-2">
-            <h3 className="text-2xl font-bold mb-4">RK Saree & Fashion Hub</h3>
-            <p className="text-gray-400 mb-4 max-w-md">
+            <h3 className="text-2xl font-bold mb-4">RK Saree Center & Fashion Store</h3>
+            <p className="text-white-400 mb-4 max-w-md">
               Your trusted destination for premium sarees and fashion. We bring you the finest collection of traditional and contemporary fashion.
             </p>
             <div className="flex gap-4">
@@ -47,22 +47,22 @@ const Footer = () => {
             <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
             <ul className="space-y-2">
               <li>
-                <Link to="/" className="text-gray-400 hover:text-white transition-colors">
+                <Link to="/" className="text-white-400 hover:text-gray-300 transition-colors">
                   Home
                 </Link>
               </li>
               <li>
-                <Link to="/category/Women" className="text-gray-400 hover:text-white transition-colors">
+                <Link to="/category/Women" className="text-white-400 hover:text-gray-300 transition-colors">
                   Women
                 </Link>
               </li>
               <li>
-                <Link to="/category/Men" className="text-gray-400 hover:text-white transition-colors">
+                <Link to="/category/Men" className="text-white-400 hover:text-gray-300 transition-colors">
                   Men
                 </Link>
               </li>
               <li>
-                <Link to="/category/Kids" className="text-gray-400 hover:text-white transition-colors">
+                <Link to="/category/Kids" className="text-white-400 hover:text-gray-300 transition-colors">
                   Kids
                 </Link>
               </li>
@@ -74,22 +74,22 @@ const Footer = () => {
             <h4 className="text-lg font-semibold mb-4">Customer Service</h4>
             <ul className="space-y-2">
               <li>
-                <Link to="/myorders" className="text-gray-400 hover:text-white transition-colors">
+                <Link to="/myorders" className="text-white-400 hover:text-gray-300 transition-colors">
                   My Orders
                 </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors">
+                <a href="#" className="text-white-400 hover:text-gray-300 transition-colors">
                   Contact Us
                 </a>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors">
+                <a href="#" className="text-white-400 hover:text-gray-300 transition-colors">
                   Shipping Info
                 </a>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors">
+                <a href="#" className="text-white-400 hover:text-gray-300 transition-colors">
                   Returns
                 </a>
               </li>
@@ -97,7 +97,7 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400 text-sm">
+        <div className="border-t border-gray-800 mt-8 pt-8 text-center text-white-400 text-sm">
           <p>&copy; {new Date().getFullYear()} RK Saree & Fashion Hub. All rights reserved.</p>
         </div>
       </div>
