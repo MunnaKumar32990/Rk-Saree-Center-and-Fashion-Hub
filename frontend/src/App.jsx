@@ -22,6 +22,8 @@ import PrivateRoute from "./components/PrivateRoute";
 import OrderDetails from "./pages/OrderDetails";
 import AdminUsers from "./admin/AdminUsers";
 import Profile from "./pages/Profile";
+import ContactUs from "./pages/ContactUs";
+import ShippingInfo from "./pages/ShippingInfo";
 
 const App = () => {
   return (
@@ -39,6 +41,8 @@ const App = () => {
         <Route path="/payment/:orderId" element={<Payment />} />
         <Route path="/success" element={<Success />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/contact" element={<ContactUs />} />
+        <Route path="/shipping" element={<ShippingInfo />} />
 
         <Route
           path="/admin/dashboard"
