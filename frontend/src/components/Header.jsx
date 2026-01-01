@@ -77,6 +77,12 @@ const Header = () => {
             {userInfo ? (
               <>
                 <Link 
+                  to="/profile" 
+                  className="hover:text-gray-300 transition-colors duration-200 font-medium"
+                >
+                  Profile
+                </Link>
+                <Link 
                   to="/myorders" 
                   className="hover:text-gray-300 transition-colors duration-200 font-medium"
                 >
@@ -168,6 +174,13 @@ const Header = () => {
 
             {userInfo ? (
               <>
+                <Link 
+                  to="/profile" 
+                  onClick={() => setMenuOpen(false)}
+                  className="py-2 px-4 rounded-lg hover:bg-gray-800 transition-colors duration-200"
+                >
+                  Profile
+                </Link>
                 <Link 
                   to="/myorders" 
                   onClick={() => setMenuOpen(false)}

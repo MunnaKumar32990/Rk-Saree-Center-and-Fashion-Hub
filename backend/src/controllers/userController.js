@@ -67,3 +67,55 @@ export const getUsers = async (req, res) => {
   const users = await User.find({}).select("-password");
   res.json(users);
 };
+
+// @desc Get user profile
+// @route GET /api/users/profile
+// @access Private
+export const getUserProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("-password");
+    if (user) {
+      res.json({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        address: user.address || "",
+        isAdmin: user.isAdmin,
+      });
+    } else {
+      res.status(404).json({ message: "User not found" });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc Update user address
+// @route PUT /api/users/profile/address
+// @access Private
+export const updateUserAddress = async (req, res) => {
+  try {
+    const { address } = req.body;
+
+    if (address === undefined) {
+      return res.status(400).json({ message: "Address is required" });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (user) {
+      user.address = address.trim();
+      const updatedUser = await user.save();
+      res.json({
+        _id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        address: updatedUser.address,
+        isAdmin: updatedUser.isAdmin,
+      });
+    } else {
+      res.status(404).json({ message: "User not found" });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

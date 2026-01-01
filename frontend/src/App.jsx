@@ -21,6 +21,7 @@ import Register from "./pages/Register";
 import PrivateRoute from "./components/PrivateRoute";
 import OrderDetails from "./pages/OrderDetails";
 import AdminUsers from "./admin/AdminUsers";
+import Profile from "./pages/Profile";
 
 const App = () => {
   return (
@@ -113,11 +114,14 @@ const App = () => {
     </AdminRoute>
   }
 />
-
-
-<Route path="/myorders" element={<MyOrders />} />
-
-
+<Route
+  path="/profile"
+  element={
+    <PrivateRoute>
+      <Profile />
+    </PrivateRoute>
+  }
+/>
 
         <Route path="/login" element={<Login />} />
 
