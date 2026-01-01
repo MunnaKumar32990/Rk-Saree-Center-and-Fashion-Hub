@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Header from "./components/Header";
+import Footer from "./components/Footer";
 import Home from "./pages/Home";
 import Category from "./pages/Category";
 import ProductDetails from "./pages/ProductDetails";
@@ -24,8 +25,10 @@ import AdminUsers from "./admin/AdminUsers";
 const App = () => {
   return (
     <Router>
-      <Header />
-      <Routes>
+      <div className="flex flex-col min-h-screen">
+        <Header />
+        <main className="flex-grow">
+          <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/category/:categoryName" element={<Category />} />
         <Route path="/product/:id" element={<ProductDetails />} />
@@ -119,7 +122,10 @@ const App = () => {
         <Route path="/login" element={<Login />} />
 
 
-      </Routes>
+          </Routes>
+        </main>
+        <Footer />
+      </div>
     </Router>
   );
 };

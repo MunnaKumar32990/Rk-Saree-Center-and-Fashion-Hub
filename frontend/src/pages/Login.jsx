@@ -33,13 +33,13 @@ const Login = () => {
         <div className="space-y-5">
           <div>
             <label className="block text-gray-700 text-sm font-semibold mb-2">Email Address</label>
-            <input type="email" placeholder="email@example.com" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-black outline-none transition-all" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <input type="email" placeholder="email@example.com" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-600 outline-none transition-all" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
           <div>
             <label className="block text-gray-700 text-sm font-semibold mb-2">Password</label>
-            <input type="password" placeholder="••••••••" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-black outline-none transition-all" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <input type="password" placeholder="••••••••" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-600 outline-none transition-all" value={password} onChange={(e) => setPassword(e.target.value)} required />
           </div>
-          <button type="submit" disabled={loading} className="w-full bg-black text-white py-3 rounded-lg font-bold transition duration-300 ease-in-out hover:bg-gray-800 active:scale-95 shadow-md disabled:bg-gray-400">
+          <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-purple-700 to-violet-700 text-white py-3 rounded-lg font-bold transition duration-300 ease-in-out hover:from-purple-600 hover:to-violet-600 active:scale-95 shadow-md disabled:bg-gray-400">
             {loading ? "Authenticating..." : "Login"}
           </button>
         </div>
