@@ -75,11 +75,15 @@ export const getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select("-password");
     if (user) {
+      // Ensure address is always returned as a string, handling null/undefined cases
+      const userAddress = user.address !== null && user.address !== undefined 
+        ? String(user.address) 
+        : "";
       res.json({
         _id: user._id,
         name: user.name,
         email: user.email,
-        address: user.address || "",
+        address: userAddress,
         isAdmin: user.isAdmin,
       });
     } else {
@@ -101,15 +105,19 @@ export const updateUserAddress = async (req, res) => {
       return res.status(400).json({ message: "Address is required" });
     }
 
-    const user = await User.findById(req.user._id);
-    if (user) {
-      user.address = address.trim();
-      const updatedUser = await user.save();
+    // Use findByIdAndUpdate to ensure the update is persisted
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id,
+      { address: address ? String(address).trim() : "" },
+      { new: true, runValidators: true }
+    ).select("-password");
+
+    if (updatedUser) {
       res.json({
         _id: updatedUser._id,
         name: updatedUser.name,
         email: updatedUser.email,
-        address: updatedUser.address,
+        address: updatedUser.address ? String(updatedUser.address) : "",
         isAdmin: updatedUser.isAdmin,
       });
     } else {

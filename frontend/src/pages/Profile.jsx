@@ -23,7 +23,7 @@ const Profile = () => {
           },
         });
         setUserProfile(profileData);
-        setAddress(profileData.address || "");
+        setAddress(profileData.address ? String(profileData.address) : "");
 
         // Fetch orders
         const { data: ordersData } = await api.get("/orders/myorders", {
@@ -44,6 +44,14 @@ const Profile = () => {
     }
   }, [userInfo?.token]);
 
+  // Sync address state with userProfile whenever it changes
+  useEffect(() => {
+    if (userProfile && !isEditingAddress) {
+      const profileAddress = userProfile.address ? String(userProfile.address) : "";
+      setAddress(profileAddress);
+    }
+  }, [userProfile, isEditingAddress]);
+
   const handleEditAddress = () => {
     setIsEditingAddress(true);
     setAddressError("");
@@ -52,7 +60,7 @@ const Profile = () => {
 
   const handleCancelEdit = () => {
     setIsEditingAddress(false);
-    setAddress(userProfile?.address || "");
+    setAddress(userProfile?.address ? String(userProfile.address) : "");
     setAddressError("");
     setSuccessMessage("");
   };
@@ -77,6 +85,7 @@ const Profile = () => {
         }
       );
       setUserProfile(data);
+      setAddress(data.address ? String(data.address) : "");
       setSuccessMessage("Address updated successfully!");
       setIsEditingAddress(false);
       setTimeout(() => setSuccessMessage(""), 3000);
@@ -147,7 +156,7 @@ const Profile = () => {
                 onClick={handleEditAddress}
                 className="bg-gradient-to-r from-purple-700 to-violet-700 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:from-purple-600 hover:to-violet-600 transition-all duration-300 hover:scale-105 active:scale-95"
               >
-                {userProfile.address ? "Edit Address" : "Add Address"}
+                {userProfile.address && String(userProfile.address).trim() ? "Edit Address" : "Add Address"}
               </button>
             )}
           </div>
@@ -197,8 +206,8 @@ const Profile = () => {
             </div>
           ) : (
             <div>
-              {userProfile.address ? (
-                <p className="text-gray-700 whitespace-pre-line">{userProfile.address}</p>
+              {userProfile.address && String(userProfile.address).trim() ? (
+                <p className="text-gray-700 whitespace-pre-line">{String(userProfile.address)}</p>
               ) : (
                 <p className="text-gray-500 italic">No address saved yet. Click "Add Address" to add one.</p>
               )}
