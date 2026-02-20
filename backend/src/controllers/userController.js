@@ -1,129 +1,203 @@
 import User from "../models/User.js";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import asyncHandler from "../utils/asyncHandler.js";
+import generateToken from "../utils/generateToken.js";
 
-// @desc Register new user
-export const registerUser = async (req, res) => {
+// @desc    Register new user
+// @route   POST /api/users/register
+// @access  Public
+export const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
 
-  try {
-    const userExists = await User.findOne({ email });
-    if (userExists) {
-      return res.status(400).json({ message: "User already exists" });
-    }
+  const userExists = await User.findOne({ email });
+  if (userExists) {
+    res.status(400);
+    throw new Error("User already exists with this email");
+  }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+  const user = await User.create({ name, email, password });
 
-    const user = await User.create({
-      name,
-      email,
-      password: hashedPassword,
-    });
+  res.status(201).json({
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    isAdmin: user.isAdmin,
+    phone: user.phone,
+    avatar: user.avatar,
+    token: generateToken(user._id),
+  });
+});
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "30d" });
+// @desc    Login user
+// @route   POST /api/users/login
+// @access  Public
+export const loginUser = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
 
-    res.status(201).json({
+  const user = await User.findOne({ email });
+
+  if (user && (await user.matchPassword(password))) {
+    res.json({
       _id: user._id,
       name: user.name,
       email: user.email,
-      isAdmin: user.isAdmin, // ADDED THIS
-      token,
+      isAdmin: user.isAdmin,
+      phone: user.phone,
+      avatar: user.avatar,
+      address: user.address,
+      token: generateToken(user._id),
     });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } else {
+    res.status(401);
+    throw new Error("Invalid email or password");
   }
-};
+});
 
-// @desc Login user
-export const loginUser = async (req, res) => {
-  const { email, password } = req.body;
-
-  try {
-    const user = await User.findOne({ email });
-
-    if (user && (await bcrypt.compare(password, user.password))) {
-      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "30d" });
-
-      res.json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        isAdmin: user.isAdmin, // ADDED THIS
-        token,
-      });
-    } else {
-      res.status(401).json({ message: "Invalid email or password" });
-    }
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// @desc Get all users
-// @route GET /api/users
-// @access Admin
-export const getUsers = async (req, res) => {
-  const users = await User.find({}).select("-password");
+// @desc    Get all users (Admin)
+// @route   GET /api/users
+// @access  Admin
+export const getUsers = asyncHandler(async (req, res) => {
+  const users = await User.find({}).select("-password").sort({ createdAt: -1 });
   res.json(users);
-};
+});
 
-// @desc Get user profile
-// @route GET /api/users/profile
-// @access Private
-export const getUserProfile = async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id).select("-password");
-    if (user) {
-      // Ensure address is always returned as a string, handling null/undefined cases
-      const userAddress = user.address !== null && user.address !== undefined 
-        ? String(user.address) 
-        : "";
-      res.json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        address: userAddress,
-        isAdmin: user.isAdmin,
-      });
-    } else {
-      res.status(404).json({ message: "User not found" });
-    }
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+// @desc    Get user profile
+// @route   GET /api/users/profile
+// @access  Private
+export const getUserProfile = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id)
+    .select("-password")
+    .populate("wishlist", "name image price discount category");
+
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
   }
-};
 
-// @desc Update user address
-// @route PUT /api/users/profile/address
-// @access Private
-export const updateUserAddress = async (req, res) => {
-  try {
-    const { address } = req.body;
+  res.json({
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    avatar: user.avatar,
+    isAdmin: user.isAdmin,
+    address: user.address,
+    wishlist: user.wishlist,
+  });
+});
 
-    if (address === undefined) {
-      return res.status(400).json({ message: "Address is required" });
-    }
+// @desc    Update user profile
+// @route   PUT /api/users/profile
+// @access  Private
+export const updateUserProfile = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
 
-    // Use findByIdAndUpdate to ensure the update is persisted
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user._id,
-      { address: address ? String(address).trim() : "" },
-      { new: true, runValidators: true }
-    ).select("-password");
-
-    if (updatedUser) {
-      res.json({
-        _id: updatedUser._id,
-        name: updatedUser.name,
-        email: updatedUser.email,
-        address: updatedUser.address ? String(updatedUser.address) : "",
-        isAdmin: updatedUser.isAdmin,
-      });
-    } else {
-      res.status(404).json({ message: "User not found" });
-    }
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
   }
-};
+
+  user.name = req.body.name || user.name;
+  user.email = req.body.email || user.email;
+  user.phone = req.body.phone || user.phone;
+  user.avatar = req.body.avatar || user.avatar;
+
+  if (req.body.address) {
+    user.address = { ...user.address.toObject(), ...req.body.address };
+  }
+
+  if (req.body.password) {
+    user.password = req.body.password;
+  }
+
+  const updatedUser = await user.save();
+
+  res.json({
+    _id: updatedUser._id,
+    name: updatedUser.name,
+    email: updatedUser.email,
+    phone: updatedUser.phone,
+    avatar: updatedUser.avatar,
+    isAdmin: updatedUser.isAdmin,
+    address: updatedUser.address,
+    token: generateToken(updatedUser._id),
+  });
+});
+
+// @desc    Add product to wishlist
+// @route   POST /api/users/wishlist/:productId
+// @access  Private
+export const addToWishlist = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+
+  const productId = req.params.productId;
+
+  if (user.wishlist.includes(productId)) {
+    return res.json({ message: "Already in wishlist", wishlist: user.wishlist });
+  }
+
+  user.wishlist.push(productId);
+  await user.save();
+
+  res.json({ message: "Added to wishlist", wishlist: user.wishlist });
+});
+
+// @desc    Remove product from wishlist
+// @route   DELETE /api/users/wishlist/:productId
+// @access  Private
+export const removeFromWishlist = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+
+  user.wishlist = user.wishlist.filter(
+    (id) => id.toString() !== req.params.productId
+  );
+  await user.save();
+
+  res.json({ message: "Removed from wishlist", wishlist: user.wishlist });
+});
+
+// @desc    Get wishlist
+// @route   GET /api/users/wishlist
+// @access  Private
+export const getWishlist = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).populate(
+    "wishlist",
+    "name image images price discount category rating numReviews countInStock"
+  );
+
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+
+  res.json(user.wishlist);
+});
+
+// @desc    Delete user (Admin)
+// @route   DELETE /api/users/:id
+// @access  Admin
+export const deleteUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id);
+
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+
+  if (user.isAdmin) {
+    res.status(400);
+    throw new Error("Cannot delete admin user");
+  }
+
+  await user.deleteOne();
+  res.json({ message: "User deleted successfully" });
+});

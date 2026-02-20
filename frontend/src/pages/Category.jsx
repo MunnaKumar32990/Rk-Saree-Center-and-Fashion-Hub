@@ -1,114 +1,152 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import api from "../services/api";
+import ProductCard from "../components/ProductCard";
+import FilterSidebar from "../components/FilterSidebar";
+import Pagination from "../components/Pagination";
+import { SkeletonCard } from "../components/Loader";
+import { FiGrid, FiList, FiSliders } from "react-icons/fi";
+
+const SORT_OPTIONS = [
+  { label: "Newest First", value: "newest" },
+  { label: "Price: Low to High", value: "price_asc" },
+  { label: "Price: High to Low", value: "price_desc" },
+  { label: "Top Rated", value: "rating" },
+];
 
 const Category = () => {
   const { categoryName } = useParams();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [sort, setSort] = useState("newest");
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    category: categoryName || "",
+    size: "",
+    rating: "",
+    minPrice: "",
+    maxPrice: "",
+  });
 
   useEffect(() => {
-    const fetchCategoryProducts = async () => {
+    setFilters((prev) => ({ ...prev, category: categoryName || "" }));
+    setPage(1);
+  }, [categoryName]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
-        const { data } = await api.get("/products");
-        const filtered = data.filter(
-          (product) => product.category === categoryName
-        );
-        setProducts(filtered);
-      } catch (error) {
-        console.error("Error fetching category products:", error);
+        const params = new URLSearchParams({ page, limit: 12, sort });
+        if (filters.category) params.set("category", filters.category);
+        if (filters.size) params.set("size", filters.size);
+        if (filters.rating) params.set("rating", filters.rating);
+        if (filters.maxPrice) params.set("maxPrice", filters.maxPrice);
+
+        const { data } = await api.get(`/products?${params}`);
+        setProducts(data.products || data);
+        setPages(data.pages || 1);
+        setTotal(data.total || (data.products || data).length);
+      } catch (err) {
+        console.error(err);
       } finally {
         setLoading(false);
       }
     };
+    fetchProducts();
+  }, [filters, sort, page]);
 
-    fetchCategoryProducts();
-  }, [categoryName]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4"></div>
-          <p className="text-gray-600 text-lg">Loading {categoryName} collection...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters);
+    setPage(1);
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8 animate-fade-in">
-          <h2 className="text-4xl font-bold text-gray-900 mb-2 capitalize">
-            {categoryName} Collection
-          </h2>
-          <p className="text-gray-600">
-            Discover our curated selection of {categoryName.toLowerCase()} fashion
+    <div className="min-h-screen bg-brand-bg">
+      {/* Page Header */}
+      <div className="bg-gradient-to-r from-brand-dark to-primary-900 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h1 className="font-outfit text-3xl sm:text-4xl font-bold text-white mb-2">
+            {categoryName || "All Products"}
+          </h1>
+          <p className="text-gray-300 text-sm">
+            {!loading && <span>{total} products found</span>}
           </p>
         </div>
+      </div>
 
-        {products.length === 0 ? (
-          <div className="text-center py-20 animate-fade-in">
-            <div className="mb-4">
-              <svg
-                className="mx-auto h-16 w-16 text-gray-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                />
-              </svg>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex gap-8">
+          {/* Sidebar – Desktop */}
+          <aside className="hidden lg:block w-64 flex-shrink-0">
+            <div className="sticky top-24">
+              <FilterSidebar filters={filters} onChange={handleFilterChange} />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              No products found
-            </h3>
-            <p className="text-gray-600 mb-6">
-              We're currently updating our {categoryName.toLowerCase()} collection.
-            </p>
-            <Link
-              to="/"
-              className="inline-block bg-gradient-to-r from-purple-700 to-violet-700 text-white px-6 py-3 rounded-lg font-semibold hover:from-purple-600 hover:to-violet-600 transition-all duration-300 hover:scale-105"
-            >
-              Browse All Products
-            </Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {products.map((product, index) => (
-              <Link
-                key={product._id}
-                to={`/product/${product._id}`}
-                className="group block no-underline text-inherit animate-fade-in"
-                style={{ animationDelay: `${index * 0.1}s` }}
+          </aside>
+
+          <div className="flex-1 min-w-0">
+            {/* Toolbar */}
+            <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
+              {/* Mobile filter toggle */}
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="lg:hidden flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:border-primary-500"
               >
-                <div className="bg-white rounded-xl overflow-hidden shadow-md transition-all duration-300 transform group-hover:-translate-y-2 group-hover:shadow-2xl border border-gray-100 h-full">
-                  <div className="overflow-hidden">
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className="w-full h-72 object-cover transition-transform duration-500 group-hover:scale-110"
-                    />
-                  </div>
-                  <div className="p-5">
-                    <h3 className="font-bold text-lg text-gray-800 group-hover:text-blue-600 transition-colors mb-2 line-clamp-2">
-                      {product.name}
-                    </h3>
-                    <p className="text-xl font-semibold text-gray-900">
-                      ₹{product.price.toLocaleString()}
-                    </p>
-                  </div>
+                <FiSliders className="w-4 h-4" /> Filters
+              </button>
+
+              <p className="text-sm text-gray-500 hidden sm:block">
+                Showing <span className="font-semibold text-gray-900">{total}</span> products
+              </p>
+
+              {/* Sort */}
+              <div className="flex items-center gap-2 ml-auto">
+                <label className="text-sm text-gray-600 hidden sm:block">Sort by:</label>
+                <select
+                  value={sort}
+                  onChange={(e) => { setSort(e.target.value); setPage(1); }}
+                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white font-medium"
+                >
+                  {SORT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Mobile Filter Panel */}
+            {showFilters && (
+              <div className="lg:hidden mb-6">
+                <FilterSidebar filters={filters} onChange={handleFilterChange} />
+              </div>
+            )}
+
+            {/* Products Grid */}
+            {loading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                {Array(12).fill(0).map((_, i) => <SkeletonCard key={i} />)}
+              </div>
+            ) : products.length > 0 ? (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {products.map((p, i) => (
+                    <ProductCard key={p._id} product={p} delay={i * 50} />
+                  ))}
                 </div>
-              </Link>
-            ))}
+                <Pagination page={page} pages={pages} onPageChange={setPage} />
+              </>
+            ) : (
+              <div className="text-center py-24">
+                <div className="text-6xl mb-4">🔍</div>
+                <h3 className="font-outfit text-xl font-bold text-gray-800 mb-2">No products found</h3>
+                <p className="text-gray-500 text-sm">Try adjusting your filters</p>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

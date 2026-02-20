@@ -1,0 +1,40 @@
+﻿[36mvite v7.3.0 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32mΓ£ô[39m 1012 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                          [39m[1m[2m    0.46 kB[22m[1m[22m[2m Γöé gzip:   0.29 kB[22m
+[2mdist/[22m[35massets/index-B9Ku82VE.css           [39m[1m[2m    3.44 kB[22m[1m[22m[2m Γöé gzip:   1.29 kB[22m
+[2mdist/[22m[36massets/purify.es-Bzr520pe.js        [39m[1m[2m   22.45 kB[22m[1m[22m[2m Γöé gzip:   8.63 kB[22m
+[2mdist/[22m[36massets/index.es-C1juPg4d.js         [39m[1m[2m  158.55 kB[22m[1m[22m[2m Γöé gzip:  52.90 kB[22m
+[2mdist/[22m[36massets/html2canvas.esm-DXEQVQnt.js  [39m[1m[2m  201.04 kB[22m[1m[22m[2m Γöé gzip:  47.43 kB[22m
+[2mdist/[22m[36massets/index-Grbl0rMt.js            [39m[1m[33m1,175.75 kB[39m[22m[2m Γöé gzip: 357.96 kB[22m
+node.exe : [33m
+At C:\Program 
+Files\nodejs\npx.ps1:29 
+char:3
++   & $NODE_EXE $NPX_CLI_JS 
+$args
++   
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo           
+   : NotSpecified: ([33m:S  
+  tring) [], RemoteExcepti   
+ on
+    + FullyQualifiedErrorId  
+   : NativeCommandError
+ 
+(!) Some chunks are larger 
+than 500 kB after 
+minification. Consider:
+- Using dynamic import() to 
+code-split the application
+- Use build.rollupOptions.out
+put.manualChunks to improve 
+chunking: https://rollupjs.or
+g/configuration-options/#outp
+ut-manualchunks
+- Adjust chunk size limit 
+for this warning via build.ch
+unkSizeWarningLimit.[39m
+[32mΓ£ô built in 9.03s[39m
