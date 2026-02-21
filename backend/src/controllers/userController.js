@@ -102,7 +102,13 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
   user.avatar = req.body.avatar || user.avatar;
 
   if (req.body.address) {
-    user.address = { ...user.address.toObject(), ...req.body.address };
+    user.address = {
+      street: req.body.address.street ?? user.address?.street ?? "",
+      city: req.body.address.city ?? user.address?.city ?? "",
+      state: req.body.address.state ?? user.address?.state ?? "",
+      postalCode: req.body.address.pinCode ?? req.body.address.postalCode ?? user.address?.postalCode ?? "",
+      country: req.body.address.country ?? user.address?.country ?? "India",
+    };
   }
 
   if (req.body.password) {

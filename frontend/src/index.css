@@ -1,35 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');
-
 /* ── CSS Custom Properties ─────────────────────────────────────── */
 :root {
-  /* Brand Colors */
-  --color-primary: #6C63FF;
-  --color-primary-dark: #4F46E5;
-  --color-primary-light: #EEF2FF;
-  --color-accent: #EC4899;
-  --color-accent-light: #FDF2F8;
-  --color-gold: #F59E0B;
+  /* Brand Colors — Emerald Green + Champagne Gold */
+  --color-primary: #0F766E;
+  --color-primary-dark: #064E3B;
+  --color-primary-light: #ECFDF5;
+  --color-accent: #EAB308;
+  --color-accent-light: #FEFCE8;
+  --color-gold: #EAB308;
 
   /* Neutral */
-  --color-bg: #F8F9FF;
+  --color-bg: #F0FDF4;
   --color-surface: #FFFFFF;
-  --color-text: #1A1A2E;
-  --color-text-muted: #6B7280;
-  --color-border: #E5E7EB;
+  --color-text: #052E1C;
+  --color-text-muted: #4B7A62;
+  --color-border: #D1FAE5;
 
   /* Dark */
-  --color-dark: #0F0F1A;
-  --color-dark-card: #1A1A2E;
+  --color-dark: #052E1C;
+  --color-dark-card: #064E3B;
 
   /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(108, 99, 255, 0.08);
-  --shadow-md: 0 4px 20px rgba(108, 99, 255, 0.12);
-  --shadow-lg: 0 8px 40px rgba(108, 99, 255, 0.18);
-  --shadow-xl: 0 20px 60px rgba(108, 99, 255, 0.22);
+  --shadow-sm: 0 1px 3px rgba(6, 95, 70, 0.08);
+  --shadow-md: 0 4px 20px rgba(6, 95, 70, 0.14);
+  --shadow-lg: 0 8px 40px rgba(6, 78, 59, 0.20);
+  --shadow-xl: 0 20px 60px rgba(6, 78, 59, 0.26);
 
   /* Radius */
   --radius-sm: 8px;
@@ -247,12 +247,150 @@ h6 {
   animation: heartBeat 0.5s ease;
 }
 
+/* ── Float Keyframe ─────────────────────────────────────────────── */
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-12px);
+  }
+}
+
+@keyframes floatSlow {
+
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+
+  50% {
+    transform: translateY(-18px) rotate(3deg);
+  }
+}
+
+@keyframes shineSweep {
+  0% {
+    transform: translateX(-100%) skewX(-15deg);
+  }
+
+  100% {
+    transform: translateX(300%) skewX(-15deg);
+  }
+}
+
+@keyframes gradientShift {
+
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes orb {
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  33% {
+    transform: translate(30px, -30px) scale(1.1);
+  }
+
+  66% {
+    transform: translate(-20px, 20px) scale(0.95);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: floatSlow 6s ease-in-out infinite;
+}
+
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradientShift 4s ease infinite;
+}
+
+.animate-orb {
+  animation: orb 8s ease-in-out infinite;
+}
+
+/* ── Scroll Reveal (JS-driven via IntersectionObserver) ────────── */
+.reveal {
+  opacity: 0;
+  transform: translateY(32px);
+  transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-left {
+  opacity: 0;
+  transform: translateX(-32px);
+  transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal-left.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.reveal-right {
+  opacity: 0;
+  transform: translateX(32px);
+  transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal-right.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* ── Shine Button Effect ────────────────────────────────────────── */
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: translateX(-100%) skewX(-15deg);
+}
+
+.btn-shine:hover::after {
+  animation: shineSweep 0.6s ease forwards;
+}
+
 /* ── Skeleton Loader ───────────────────────────────────────────── */
 .skeleton {
   background: linear-gradient(90deg,
-      #f0f0f0 25%,
-      #e0e0e0 50%,
-      #f0f0f0 75%);
+      #d1fae5 25%,
+      #a7f3d0 50%,
+      #d1fae5 75%);
   background-size: 200% 100%;
   animation: shimmer 1.4s ease-in-out infinite;
   border-radius: var(--radius-sm);
@@ -271,10 +409,10 @@ h6 {
 
 /* ── Glass Effect ──────────────────────────────────────────────── */
 .glass {
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(240, 253, 244, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(167, 243, 208, 0.4);
 }
 
 /* ── Custom Range Input ────────────────────────────────────────── */

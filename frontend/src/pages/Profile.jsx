@@ -14,7 +14,7 @@ const Profile = () => {
       street: userInfo?.address?.street || "",
       city: userInfo?.address?.city || "",
       state: userInfo?.address?.state || "",
-      pinCode: userInfo?.address?.pinCode || "",
+      pinCode: userInfo?.address?.postalCode || userInfo?.address?.pinCode || "",
     },
     password: "",
     newPassword: "",

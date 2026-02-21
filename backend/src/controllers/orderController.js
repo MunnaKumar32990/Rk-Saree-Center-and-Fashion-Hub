@@ -2,6 +2,7 @@ import Order from "../models/Order.js";
 import Product from "../models/Product.js";
 import User from "../models/User.js";
 import asyncHandler from "../utils/asyncHandler.js";
+import { validateCoupon, COUPONS } from "../utils/coupons.js";
 
 // @desc    Create new order
 // @route   POST /api/orders
@@ -251,4 +252,49 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
 
   const order = await razorpay.orders.create(options);
   res.json({ orderId: order.id, amount: order.amount, currency: order.currency });
+});
+
+// @desc    Validate a coupon code
+// @route   POST /api/orders/coupon/validate
+// @access  Private
+export const validateCouponCode = asyncHandler(async (req, res) => {
+  const { code, orderTotal } = req.body;
+
+  if (!code) {
+    res.status(400);
+    throw new Error("Coupon code is required");
+  }
+
+  const result = validateCoupon(code, Number(orderTotal) || 0);
+
+  if (!result.valid) {
+    res.status(400).json({ message: result.message });
+    return;
+  }
+
+  res.json({
+    valid: true,
+    code: result.coupon.code,
+    type: result.coupon.type,
+    value: result.coupon.value,
+    discount: result.discount,
+    description: result.message,
+  });
+});
+
+// @desc    Get all available coupons (public teaser — no secret values)
+// @route   GET /api/orders/coupons
+// @access  Private
+export const getAvailableCoupons = asyncHandler(async (req, res) => {
+  const now = new Date();
+  const visible = COUPONS
+    .filter((c) => c.expiry > now)
+    .map((c) => ({
+      code: c.code,
+      description: c.description,
+      minOrder: c.minOrder,
+      type: c.type,
+      value: c.value,
+    }));
+  res.json(visible);
 });

@@ -10,6 +10,8 @@ import {
   getOrderStats,
   getMonthlySalesStats,
   createRazorpayOrder,
+  validateCouponCode,
+  getAvailableCoupons,
 } from "../controllers/orderController.js";
 import { protect, admin } from "../middlewares/authMiddleware.js";
 
@@ -18,6 +20,10 @@ const router = express.Router();
 // Stats routes first (before :id to avoid conflicts)
 router.get("/stats", protect, admin, getOrderStats);
 router.get("/monthly-stats", protect, admin, getMonthlySalesStats);
+
+// Coupon routes
+router.post("/coupon/validate", protect, validateCouponCode);
+router.get("/coupons", protect, getAvailableCoupons);
 
 router.route("/")
   .post(protect, addOrderItems)

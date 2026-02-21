@@ -42,7 +42,7 @@ const Footer = () => {
               and timeless styles that make every moment memorable.
             </p>
             <div className="flex gap-3">
-              {[{ icon: FiFacebook, href: "#" }, { icon: FiInstagram, href: "#" }, { icon: FiTwitter, href: "#" }, { icon: FiYoutube, href: "#" }].map(({ icon: Icon, href }, i) => (
+              {[{ icon: FiFacebook, href: "#" }, { icon: FiInstagram, href: "https://www.instagram.com/r.k_saree_center?igsh=MWpjaXhrNXN2bHRmZw==" }, { icon: FiTwitter, href: "#" }, { icon: FiYoutube, href: "#" }].map(({ icon: Icon, href }, i) => (
                 <a key={i} href={href} className="w-9 h-9 bg-white/5 hover:bg-primary-500 rounded-lg flex items-center justify-center text-gray-400 hover:text-white transition-all hover:scale-110">
                   <Icon className="w-4 h-4" />
                 </a>
@@ -93,11 +93,11 @@ const Footer = () => {
             <ul className="space-y-4">
               <li className="flex items-start gap-3 text-sm">
                 <FiMapPin className="w-4 h-4 text-primary-400 mt-0.5 flex-shrink-0" />
-                <span className="text-gray-400">RK Saree Center, Main Market, Your City, India</span>
+                <span className="text-gray-400">RK Saree Center, Yogapatti Main Road, 845452, Bihar, India</span>
               </li>
               <li className="flex items-center gap-3 text-sm">
                 <FiPhone className="w-4 h-4 text-primary-400 flex-shrink-0" />
-                <a href="tel:+919999999999" className="text-gray-400 hover:text-primary-400 transition-colors">+91 99999 99999</a>
+                <a href="tel:+919999999999" className="text-gray-400 hover:text-primary-400 transition-colors">+91 9708756854</a>
               </li>
               <li className="flex items-center gap-3 text-sm">
                 <FiMail className="w-4 h-4 text-primary-400 flex-shrink-0" />
@@ -107,7 +107,7 @@ const Footer = () => {
             <div className="mt-6 p-4 bg-white/5 rounded-xl border border-white/10">
               <p className="text-xs text-gray-400 mb-1 font-medium text-primary-400">Store Hours</p>
               <p className="text-sm text-gray-300">Mon – Sat: 10AM – 8PM</p>
-              <p className="text-sm text-gray-300">Sun: 11AM – 6PM</p>
+              <p className="text-sm text-gray-300">Sun: 11AM – 8PM</p>
             </div>
           </div>
         </div>
