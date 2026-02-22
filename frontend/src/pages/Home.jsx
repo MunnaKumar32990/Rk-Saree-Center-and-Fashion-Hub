@@ -54,9 +54,12 @@ function useReveal() {
 /* ─── Animated counter ────────────────────────────────────────── */
 function useCounter(target, duration = 1400, active = false) {
   const [val, setVal] = useState(0);
+  // Check if the numeric part is a decimal (like "4.8") — skip animation for these
+  const numericPart = target.replace(/[^\d.]/g, "");
+  const isDecimal = numericPart.includes(".");
   useEffect(() => {
-    if (!active) return;
-    const end = parseInt(target.replace(/\D/g, "")) || 0;
+    if (!active || isDecimal) return;
+    const end = parseInt(numericPart) || 0;
     if (!end) { setVal(target); return; }
     const step = Math.ceil(end / (duration / 16));
     let cur = 0;
@@ -66,7 +69,7 @@ function useCounter(target, duration = 1400, active = false) {
       if (cur >= end) clearInterval(timer);
     }, 16);
     return () => clearInterval(timer);
-  }, [active, target, duration]);
+  }, [active, target, duration, isDecimal, numericPart]);
   return val || target;
 }
 
@@ -80,11 +83,14 @@ function StatCounter({ value, label, delay = 0 }) {
     return () => obs.disconnect();
   }, []);
   const count = useCounter(value, 1400, active);
-  const suffix = value.replace(/[0-9]/g, "");
+  const numericPart = value.replace(/[^\d.]/g, "");
+  const isDecimal = numericPart.includes(".");
+  const suffix = value.replace(/[\d.]/g, "");
   return (
     <div ref={ref} className="text-center reveal" style={{ transitionDelay: `${delay}ms` }}>
       <p className="font-outfit font-black text-3xl sm:text-4xl text-white">
-        {active && typeof count === "number" ? `${count}${suffix}` : value}
+        {/* Decimal values (e.g. 4.8★) render as-is; integers animate */}
+        {isDecimal ? value : (active && typeof count === "number" ? `${count}${suffix}` : value)}
       </p>
       <p className="text-primary-200 text-sm mt-1">{label}</p>
     </div>
