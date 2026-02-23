@@ -156,7 +156,7 @@ const Header = () => {
                 Categories <FiChevronDown className={`transition-transform ${catDropdown ? "rotate-180" : ""}`} />
               </button>
               {catDropdown && (
-                <div className="absolute top-full left-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 py-5 animate-slide-down z-50 flex gap-0" style={{ minWidth: '600px' }}>
+                <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 py-5 animate-slide-down z-50 flex gap-0" style={{ width: '640px' }}>
                   {CATEGORY_MENU.map((cat, idx) => (
                     <div key={cat.name} className={`flex-1 px-5 ${idx < CATEGORY_MENU.length - 1 ? 'border-r border-gray-100' : ''}`}>
                       <Link
