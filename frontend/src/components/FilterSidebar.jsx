@@ -2,7 +2,25 @@ import { useState } from "react";
 import { FiFilter, FiX, FiChevronDown } from "react-icons/fi";
 
 const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
-const CATEGORIES = ["All", "Men", "Women", "Kids", "Sarees", "Suits", "Kurtis", "Lehengas"];
+
+const CATEGORY_FILTERS = [
+    {
+        name: "Men",
+        emoji: "👔",
+        subcategories: ["Shirts", "T-Shirts", "Jeans", "Kurtas", "Sherwani", "Shorts", "Pajamas", "Track Pants"],
+    },
+    {
+        name: "Women",
+        emoji: "👗",
+        subcategories: ["Sarees", "Lehengas", "Suits", "Kurtis", "Dupatta", "Blouses", "Chunni", "Undergarments"],
+    },
+    {
+        name: "Kids",
+        emoji: "🧒",
+        subcategories: ["Boys Wear", "Girls Wear", "Kids T-Shirts", "Kids Shorts", "Kurta Sets", "Frocks", "Kids Lehenga"],
+    },
+];
+
 const RATINGS = [4, 3, 2, 1];
 
 const FilterSidebar = ({ filters, onChange }) => {
@@ -59,22 +77,38 @@ const FilterSidebar = ({ filters, onChange }) => {
                         <FiChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${openSections.category ? "" : "-rotate-90"}`} />
                     </button>
                     {openSections.category && (
-                        <div className="space-y-2">
-                            {CATEGORIES.map((cat) => {
-                                const isActive = cat === "All" ? !filters.category : filters.category === cat;
-                                return (
+                        <div className="space-y-1">
+                            {/* All */}
+                            <button
+                                onClick={() => handleCategory("All")}
+                                className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all ${!filters.category ? "bg-primary-100 text-primary-700" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`}
+                            >
+                                🛍️ All Categories
+                            </button>
+                            {/* Hierarchical categories */}
+                            {CATEGORY_FILTERS.map((cat) => (
+                                <div key={cat.name}>
                                     <button
-                                        key={cat}
-                                        onClick={() => handleCategory(cat)}
-                                        className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all ${isActive
-                                                ? "bg-primary-100 text-primary-700"
-                                                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                                            }`}
+                                        onClick={() => handleCategory(cat.name)}
+                                        className={`w-full text-left px-3 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${filters.category === cat.name && !filters.subcategory ? "bg-primary-100 text-primary-700" : "text-gray-700 hover:bg-gray-50"}`}
                                     >
-                                        {cat}
+                                        <span>{cat.emoji}</span> {cat.name}
                                     </button>
-                                );
-                            })}
+                                    {(filters.category === cat.name) && (
+                                        <div className="ml-3 mt-1 space-y-0.5 border-l-2 border-primary-100 pl-3">
+                                            {cat.subcategories.map((sub) => (
+                                                <button
+                                                    key={sub}
+                                                    onClick={() => onChange({ ...filters, category: cat.name, subcategory: sub })}
+                                                    className={`w-full text-left px-2 py-1.5 rounded-lg text-xs transition-all ${filters.subcategory === sub ? "bg-primary-100 text-primary-700 font-semibold" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}
+                                                >
+                                                    {sub}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
                         </div>
                     )}
                 </div>
@@ -123,8 +157,8 @@ const FilterSidebar = ({ filters, onChange }) => {
                                     key={size}
                                     onClick={() => handleSize(size)}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${filters.size === size
-                                            ? "bg-primary-600 text-white border-primary-600"
-                                            : "border-gray-200 text-gray-600 hover:border-primary-400 hover:text-primary-600"
+                                        ? "bg-primary-600 text-white border-primary-600"
+                                        : "border-gray-200 text-gray-600 hover:border-primary-400 hover:text-primary-600"
                                         }`}
                                 >
                                     {size}
@@ -147,8 +181,8 @@ const FilterSidebar = ({ filters, onChange }) => {
                                     key={r}
                                     onClick={() => handleRating(r)}
                                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${filters.rating === r
-                                            ? "bg-primary-50 text-primary-700"
-                                            : "text-gray-600 hover:bg-gray-50"
+                                        ? "bg-primary-50 text-primary-700"
+                                        : "text-gray-600 hover:bg-gray-50"
                                         }`}
                                 >
                                     <div className="flex text-yellow-400">

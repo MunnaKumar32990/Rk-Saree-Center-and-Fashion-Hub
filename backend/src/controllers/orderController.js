@@ -1,21 +1,55 @@
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
 import User from "../models/User.js";
+import ReturnRequest from "../models/ReturnRequest.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { validateCoupon, COUPONS } from "../utils/coupons.js";
 
-// @desc    Create new order
-// @route   POST /api/orders
-// @access  Private
+// ─── Helper ──────────────────────────────────────────────────────────────────
+const buildOrderFilter = (query) => {
+  const filter = {};
+
+  if (query.status) filter.status = query.status;
+
+  if (query.paymentStatus === "paid") filter.isPaid = true;
+  else if (query.paymentStatus === "unpaid") filter.isPaid = false;
+
+  if (query.dateFrom || query.dateTo) {
+    filter.createdAt = {};
+    if (query.dateFrom) filter.createdAt.$gte = new Date(query.dateFrom);
+    if (query.dateTo) {
+      const to = new Date(query.dateTo);
+      to.setHours(23, 59, 59, 999);
+      filter.createdAt.$lte = to;
+    }
+  }
+
+  if (query.minPrice || query.maxPrice) {
+    filter.totalPrice = {};
+    if (query.minPrice) filter.totalPrice.$gte = Number(query.minPrice);
+    if (query.maxPrice) filter.totalPrice.$lte = Number(query.maxPrice);
+  }
+
+  return filter;
+};
+
+// ─── Create Order ─────────────────────────────────────────────────────────────
+// @route POST /api/orders
+// @access Private
 export const addOrderItems = asyncHandler(async (req, res) => {
   const {
     orderItems,
     shippingAddress,
+    billingAddress,
     paymentMethod,
     itemsPrice,
     shippingPrice,
     taxPrice,
+    discountPrice,
+    couponCode,
+    couponDiscount,
     totalPrice,
+    orderNotes,
   } = req.body;
 
   if (!orderItems || orderItems.length === 0) {
@@ -23,42 +57,58 @@ export const addOrderItems = asyncHandler(async (req, res) => {
     throw new Error("No order items");
   }
 
+  const initialStatus = paymentMethod === "COD" ? "Confirmed" : "Pending Payment";
+
   const order = await Order.create({
     user: req.user._id,
     orderItems,
     shippingAddress,
+    billingAddress: billingAddress || { sameAsShipping: true },
     paymentMethod,
     itemsPrice,
     shippingPrice,
     taxPrice: taxPrice || 0,
+    discountPrice: discountPrice || 0,
+    couponCode: couponCode || "",
+    couponDiscount: couponDiscount || 0,
     totalPrice,
-    status: "Processing",
-    statusHistory: [{ status: "Processing", note: "Order placed" }],
+    orderNotes: orderNotes || "",
+    status: initialStatus,
+    isPaid: paymentMethod === "COD" ? false : false,
+    statusHistory: [
+      {
+        status: initialStatus,
+        note: paymentMethod === "COD" ? "Order placed (Cash on Delivery)" : "Order placed, awaiting payment",
+        changedByName: req.user.name || "Customer",
+        changedBy: req.user._id,
+      },
+    ],
   });
 
   res.status(201).json(order);
 });
 
-// @desc    Get logged in user orders
-// @route   GET /api/orders/myorders
-// @access  Private
+// ─── My Orders ───────────────────────────────────────────────────────────────
+// @route GET /api/orders/myorders
+// @access Private
 export const getMyOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({ user: req.user._id }).sort({ createdAt: -1 });
   res.json(orders);
 });
 
-// @desc    Get order by ID
-// @route   GET /api/orders/:id
-// @access  Private
+// ─── Get Order By ID ──────────────────────────────────────────────────────────
+// @route GET /api/orders/:id
+// @access Private
 export const getOrderById = asyncHandler(async (req, res) => {
-  const order = await Order.findById(req.params.id).populate("user", "name email phone");
+  const order = await Order.findById(req.params.id)
+    .populate("user", "name email phone")
+    .populate("statusHistory.changedBy", "name email");
 
   if (!order) {
     res.status(404);
     throw new Error("Order not found");
   }
 
-  // Only allow admin or order owner
   if (!req.user.isAdmin && order.user._id.toString() !== req.user._id.toString()) {
     res.status(403);
     throw new Error("Not authorized to view this order");
@@ -67,27 +117,46 @@ export const getOrderById = asyncHandler(async (req, res) => {
   res.json(order);
 });
 
-// @desc    Get all orders (Admin)
-// @route   GET /api/orders
-// @access  Admin
+// ─── Get All Orders (Admin) with filters ─────────────────────────────────────
+// @route GET /api/orders
+// @access Admin
 export const getOrders = asyncHandler(async (req, res) => {
   const page = Number(req.query.page) || 1;
   const limit = Number(req.query.limit) || 20;
   const skip = (page - 1) * limit;
 
-  const total = await Order.countDocuments();
-  const orders = await Order.find({})
-    .populate("user", "id name email")
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
+  const filter = buildOrderFilter(req.query);
+
+  // Search by order ID fragment or customer name
+  if (req.query.search) {
+    const search = req.query.search.trim();
+    // Find users matching the name search
+    const matchingUsers = await User.find({
+      name: { $regex: search, $options: "i" },
+    }).select("_id");
+    const userIds = matchingUsers.map((u) => u._id);
+
+    filter.$or = [
+      { _id: { $regex: search, $options: "i" } },
+      { user: { $in: userIds } },
+    ];
+  }
+
+  const [total, orders] = await Promise.all([
+    Order.countDocuments(filter),
+    Order.find(filter)
+      .populate("user", "id name email phone")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+  ]);
 
   res.json({ orders, page, pages: Math.ceil(total / limit), total });
 });
 
-// @desc    Update order to paid (via Razorpay verification)
-// @route   PUT /api/orders/:id/pay
-// @access  Private
+// ─── Update to Paid (Razorpay callback) ──────────────────────────────────────
+// @route PUT /api/orders/:id/pay
+// @access Private
 export const updateOrderToPaid = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
 
@@ -98,30 +167,46 @@ export const updateOrderToPaid = asyncHandler(async (req, res) => {
 
   order.isPaid = true;
   order.paidAt = Date.now();
-  order.status = "Confirmed";
+  order.status = "Paid";
   order.paymentResult = {
     razorpayOrderId: req.body.razorpayOrderId,
     razorpayPaymentId: req.body.razorpayPaymentId,
     razorpaySignature: req.body.razorpaySignature,
+    transactionId: req.body.razorpayPaymentId || req.body.transactionId,
+    paymentGateway: "Razorpay",
     status: "COMPLETED",
     updateTime: new Date().toISOString(),
   };
-  order.statusHistory.push({ status: "Confirmed", note: "Payment received" });
+  order.statusHistory.push({
+    status: "Paid",
+    note: "Payment received via Razorpay",
+    changedBy: req.user._id,
+    changedByName: "System",
+  });
 
   const updatedOrder = await order.save();
   res.json(updatedOrder);
 });
 
-// @desc    Update order status (Admin)
-// @route   PUT /api/orders/:id/status
-// @access  Admin
+// ─── Update Order Status (Admin) ──────────────────────────────────────────────
+// @route PUT /api/orders/:id/status
+// @access Admin
 export const updateOrderStatus = asyncHandler(async (req, res) => {
-  const { status, note } = req.body;
+  const { status, note, trackingNumber, courierName, trackingUrl } = req.body;
   const order = await Order.findById(req.params.id);
 
   if (!order) {
     res.status(404);
     throw new Error("Order not found");
+  }
+
+  // Validate transition
+  const validNext = Order.VALID_TRANSITIONS[order.status] || [];
+  if (validNext.length > 0 && !validNext.includes(status)) {
+    res.status(400);
+    throw new Error(
+      `Invalid status transition: ${order.status} → ${status}. Allowed: ${validNext.join(", ")}`
+    );
   }
 
   order.status = status;
@@ -130,19 +215,32 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     order.isDelivered = true;
     order.deliveredAt = Date.now();
   }
+  if (status === "Paid") {
+    order.isPaid = true;
+    order.paidAt = Date.now();
+  }
+  if (status === "Refunded") {
+    order.refundStatus = "Refunded";
+  }
+
+  if (trackingNumber) order.trackingNumber = trackingNumber;
+  if (courierName) order.courierName = courierName;
+  if (trackingUrl) order.trackingUrl = trackingUrl;
 
   order.statusHistory.push({
     status,
-    note: note || `Order status updated to ${status}`,
+    note: note || `Status updated to ${status}`,
+    changedBy: req.user._id,
+    changedByName: req.user.name || "Admin",
   });
 
   const updatedOrder = await order.save();
   res.json(updatedOrder);
 });
 
-// @desc    Mark order as delivered (Admin)
-// @route   PUT /api/orders/:id/deliver
-// @access  Admin
+// ─── Mark Delivered (Admin) ───────────────────────────────────────────────────
+// @route PUT /api/orders/:id/deliver
+// @access Admin
 export const markOrderDelivered = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
 
@@ -154,49 +252,180 @@ export const markOrderDelivered = asyncHandler(async (req, res) => {
   order.isDelivered = true;
   order.deliveredAt = Date.now();
   order.status = "Delivered";
-  order.statusHistory.push({ status: "Delivered", note: "Order delivered to customer" });
+  order.statusHistory.push({
+    status: "Delivered",
+    note: "Order delivered to customer",
+    changedBy: req.user._id,
+    changedByName: req.user.name || "Admin",
+  });
 
   const updatedOrder = await order.save();
   res.json(updatedOrder);
 });
 
-// @desc    Get dashboard stats
-// @route   GET /api/orders/stats
-// @access  Admin
+// ─── Bulk Status Update (Admin) ───────────────────────────────────────────────
+// @route PUT /api/orders/bulk-status
+// @access Admin
+export const bulkUpdateStatus = asyncHandler(async (req, res) => {
+  const { orderIds, status } = req.body;
+
+  if (!orderIds || orderIds.length === 0 || !status) {
+    res.status(400);
+    throw new Error("orderIds[] and status are required");
+  }
+
+  const historyEntry = {
+    status,
+    note: `Bulk status update to ${status}`,
+    changedByName: req.user.name || "Admin",
+    changedBy: req.user._id,
+    updatedAt: new Date(),
+  };
+
+  const update = {
+    $set: { status },
+    $push: { statusHistory: historyEntry },
+  };
+
+  if (status === "Delivered") {
+    update.$set.isDelivered = true;
+    update.$set.deliveredAt = new Date();
+  }
+
+  const result = await Order.updateMany({ _id: { $in: orderIds } }, update);
+
+  res.json({ message: `${result.modifiedCount} orders updated to ${status}` });
+});
+
+// ─── Export Orders CSV (Admin) ────────────────────────────────────────────────
+// @route GET /api/orders/export-csv
+// @access Admin
+export const exportOrdersCSV = asyncHandler(async (req, res) => {
+  const filter = buildOrderFilter(req.query);
+  const orders = await Order.find(filter)
+    .populate("user", "name email phone")
+    .sort({ createdAt: -1 })
+    .limit(5000);
+
+  const headers = [
+    "Order ID",
+    "Date",
+    "Customer",
+    "Email",
+    "Phone",
+    "Items",
+    "Total (₹)",
+    "Payment Method",
+    "Payment Status",
+    "Order Status",
+    "Coupon",
+    "Discount",
+    "Tracking",
+  ];
+
+  const rows = orders.map((o) => [
+    o._id,
+    new Date(o.createdAt).toLocaleDateString("en-IN"),
+    o.user?.name || "Guest",
+    o.user?.email || "",
+    o.shippingAddress?.phone || "",
+    o.orderItems?.length || 0,
+    o.totalPrice,
+    o.paymentMethod,
+    o.isPaid ? "Paid" : "Unpaid",
+    o.status,
+    o.couponCode || "",
+    o.couponDiscount || 0,
+    o.trackingNumber || "",
+  ]);
+
+  const csvContent = [headers, ...rows]
+    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="orders-${Date.now()}.csv"`
+  );
+  res.send(csvContent);
+});
+
+// ─── Dashboard Stats (Admin) ──────────────────────────────────────────────────
+// @route GET /api/orders/stats
+// @access Admin
 export const getOrderStats = asyncHandler(async (req, res) => {
-  const [orders, paidOrders, totalUsers] = await Promise.all([
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+
+  const [
+    allOrders,
+    paidOrders,
+    todayOrders,
+    monthOrders,
+    totalUsers,
+  ] = await Promise.all([
     Order.find({}),
     Order.find({ isPaid: true }),
+    Order.find({ createdAt: { $gte: today } }),
+    Order.find({ createdAt: { $gte: monthStart }, isPaid: true }),
     User.countDocuments({}),
   ]);
 
-  const totalOrders = orders.length;
+  const totalOrders = allOrders.length;
   const totalRevenue = paidOrders.reduce((acc, o) => acc + o.totalPrice, 0);
-  const deliveredOrders = orders.filter((o) => o.status === "Delivered").length;
-  const pendingOrders = orders.filter((o) => !o.isPaid).length;
+  const todayRevenue = todayOrders
+    .filter((o) => o.isPaid)
+    .reduce((acc, o) => acc + o.totalPrice, 0);
+  const monthRevenue = monthOrders.reduce((acc, o) => acc + o.totalPrice, 0);
 
-  // Per-status breakdown for dashboard chart
   const statusCounts = {};
-  orders.forEach((o) => {
+  allOrders.forEach((o) => {
     statusCounts[o.status] = (statusCounts[o.status] || 0) + 1;
   });
+
+  const deliveredOrders = statusCounts["Delivered"] || 0;
+  const cancelledOrders = statusCounts["Cancelled"] || 0;
+  const returnedOrders = statusCounts["Returned"] || 0;
+  const refundedOrders = statusCounts["Refunded"] || 0;
+  const pendingOrders = (statusCounts["Pending Payment"] || 0) + (statusCounts["Paid"] || 0);
+  const processingOrders =
+    (statusCounts["Confirmed"] || 0) +
+    (statusCounts["Packed"] || 0) +
+    (statusCounts["Shipped"] || 0) +
+    (statusCounts["Out for Delivery"] || 0);
+
+  const conversionRate =
+    totalOrders > 0 ? Math.round((deliveredOrders / totalOrders) * 100) : 0;
+  const refundRate =
+    totalOrders > 0 ? Math.round((refundedOrders / totalOrders) * 100) : 0;
+  const cancellationRate =
+    totalOrders > 0 ? Math.round((cancelledOrders / totalOrders) * 100) : 0;
 
   res.json({
     totalOrders,
     totalRevenue,
+    todayRevenue,
+    todayOrders: todayOrders.length,
+    monthRevenue,
     deliveredOrders,
     pendingOrders,
+    processingOrders,
+    cancelledOrders,
+    returnedOrders,
+    refundedOrders,
     totalUsers,
-    processingOrders: statusCounts["Processing"] || 0,
-    confirmedOrders: statusCounts["Confirmed"] || 0,
-    shippedOrders: statusCounts["Shipped"] || 0,
-    cancelledOrders: statusCounts["Cancelled"] || 0,
+    conversionRate,
+    refundRate,
+    cancellationRate,
+    statusCounts,
   });
 });
 
-// @desc    Get monthly revenue stats
-// @route   GET /api/orders/monthly-stats
-// @access  Admin
+// ─── Monthly Sales Stats ──────────────────────────────────────────────────────
+// @route GET /api/orders/monthly-stats
+// @access Admin
 export const getMonthlySalesStats = asyncHandler(async (req, res) => {
   const stats = await Order.aggregate([
     { $match: { isPaid: true } },
@@ -228,9 +457,9 @@ export const getMonthlySalesStats = asyncHandler(async (req, res) => {
   res.json(result);
 });
 
-// @desc    Create Razorpay order
-// @route   POST /api/orders/razorpay
-// @access  Private
+// ─── Create Razorpay Order ────────────────────────────────────────────────────
+// @route POST /api/orders/razorpay
+// @access Private
 export const createRazorpayOrder = asyncHandler(async (req, res) => {
   if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_SECRET) {
     res.status(503);
@@ -245,7 +474,7 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
 
   const { amount } = req.body;
   const options = {
-    amount: Math.round(amount * 100), // in paise
+    amount: Math.round(amount * 100),
     currency: "INR",
     receipt: `receipt_${Date.now()}`,
   };
@@ -254,9 +483,7 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
   res.json({ orderId: order.id, amount: order.amount, currency: order.currency });
 });
 
-// @desc    Validate a coupon code
-// @route   POST /api/orders/coupon/validate
-// @access  Private
+// ─── Coupon Routes ────────────────────────────────────────────────────────────
 export const validateCouponCode = asyncHandler(async (req, res) => {
   const { code, orderTotal } = req.body;
 
@@ -282,9 +509,6 @@ export const validateCouponCode = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Get all available coupons (public teaser — no secret values)
-// @route   GET /api/orders/coupons
-// @access  Private
 export const getAvailableCoupons = asyncHandler(async (req, res) => {
   const now = new Date();
   const visible = COUPONS
@@ -297,4 +521,136 @@ export const getAvailableCoupons = asyncHandler(async (req, res) => {
       value: c.value,
     }));
   res.json(visible);
+});
+
+// ─── Return / Refund System ───────────────────────────────────────────────────
+
+// @route POST /api/orders/:id/return
+// @access Private (customer)
+export const createReturnRequest = asyncHandler(async (req, res) => {
+  const { reason, reasonDetail } = req.body;
+  const order = await Order.findById(req.params.id);
+
+  if (!order) {
+    res.status(404);
+    throw new Error("Order not found");
+  }
+
+  if (order.user.toString() !== req.user._id.toString()) {
+    res.status(403);
+    throw new Error("Not authorized");
+  }
+
+  if (order.status !== "Delivered") {
+    res.status(400);
+    throw new Error("Return requests can only be raised for delivered orders");
+  }
+
+  const existing = await ReturnRequest.findOne({ order: order._id });
+  if (existing) {
+    res.status(400);
+    throw new Error("A return request already exists for this order");
+  }
+
+  const returnReq = await ReturnRequest.create({
+    order: order._id,
+    user: req.user._id,
+    reason,
+    reasonDetail: reasonDetail || "",
+    status: "Pending",
+    timeline: [
+      {
+        status: "Pending",
+        note: "Return request submitted by customer",
+        changedBy: req.user.name || "Customer",
+      },
+    ],
+  });
+
+  // Update order status
+  order.status = "Returned";
+  order.statusHistory.push({
+    status: "Returned",
+    note: `Return requested: ${reason}`,
+    changedBy: req.user._id,
+    changedByName: req.user.name || "Customer",
+  });
+  await order.save();
+
+  res.status(201).json(returnReq);
+});
+
+// @route GET /api/orders/returns
+// @access Admin
+export const getReturnRequests = asyncHandler(async (req, res) => {
+  const page = Number(req.query.page) || 1;
+  const limit = Number(req.query.limit) || 20;
+  const skip = (page - 1) * limit;
+
+  const filter = {};
+  if (req.query.status) filter.status = req.query.status;
+
+  const [total, returns] = await Promise.all([
+    ReturnRequest.countDocuments(filter),
+    ReturnRequest.find(filter)
+      .populate("order", "_id totalPrice createdAt")
+      .populate("user", "name email phone")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+  ]);
+
+  res.json({ returns, page, pages: Math.ceil(total / limit), total });
+});
+
+// @route GET /api/orders/:id/return
+// @access Private
+export const getReturnRequestByOrder = asyncHandler(async (req, res) => {
+  const returnReq = await ReturnRequest.findOne({ order: req.params.id })
+    .populate("user", "name email");
+
+  res.json(returnReq || null);
+});
+
+// @route PUT /api/orders/returns/:returnId
+// @access Admin
+export const updateReturnRequest = asyncHandler(async (req, res) => {
+  const { status, adminNote, refundAmount } = req.body;
+  const returnReq = await ReturnRequest.findById(req.params.returnId);
+
+  if (!returnReq) {
+    res.status(404);
+    throw new Error("Return request not found");
+  }
+
+  returnReq.status = status;
+  if (adminNote) returnReq.adminNote = adminNote;
+  if (refundAmount !== undefined) returnReq.refundAmount = refundAmount;
+
+  returnReq.timeline.push({
+    status,
+    note: adminNote || `Return ${status.toLowerCase()} by admin`,
+    changedBy: req.user.name || "Admin",
+  });
+
+  // If approved → update order to Refunded
+  if (status === "Refunded") {
+    returnReq.restocked = true;
+    const order = await Order.findById(returnReq.order);
+    if (order) {
+      order.status = "Refunded";
+      order.refundStatus = "Refunded";
+      order.refundAmount = refundAmount || order.totalPrice;
+      order.statusHistory.push({
+        status: "Refunded",
+        note: `Refund processed: ₹${refundAmount || order.totalPrice}`,
+        changedBy: req.user._id,
+        changedByName: req.user.name || "Admin",
+      });
+      await order.save();
+    }
+  }
+
+  const updated = await returnReq.save();
+  res.json(updated);
 });

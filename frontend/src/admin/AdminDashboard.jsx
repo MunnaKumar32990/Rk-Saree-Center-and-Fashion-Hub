@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import AdminLayout from "./AdminLayout";
 import {
@@ -7,7 +8,8 @@ import {
 } from "recharts";
 import {
   FiShoppingBag, FiDollarSign, FiTruck, FiUsers,
-  FiTrendingUp, FiPackage
+  FiTrendingUp, FiPackage, FiXCircle, FiRotateCcw,
+  FiAlertCircle, FiPercent
 } from "react-icons/fi";
 
 const StatCard = ({ icon: Icon, label, value, sub, gradient, iconBg }) => (
@@ -15,16 +17,27 @@ const StatCard = ({ icon: Icon, label, value, sub, gradient, iconBg }) => (
     <div className="flex items-start justify-between">
       <div>
         <p className="text-white/70 text-xs font-semibold uppercase tracking-wider mb-2">{label}</p>
-        <p className="font-outfit font-black text-4xl">{value}</p>
+        <p className="font-outfit font-black text-3xl">{value}</p>
         {sub && <p className="text-white/60 text-xs mt-1">{sub}</p>}
       </div>
       <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${iconBg}`}>
         <Icon className="w-6 h-6 text-white" />
       </div>
     </div>
-    {/* decorative */}
     <div className="absolute -bottom-4 -right-4 w-24 h-24 rounded-full bg-white/10" />
     <div className="absolute -bottom-8 -right-8 w-32 h-32 rounded-full bg-white/5" />
+  </div>
+);
+
+const MiniStatCard = ({ icon: Icon, label, value, color }) => (
+  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-4">
+    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
+      <Icon className="w-5 h-5 text-white" />
+    </div>
+    <div>
+      <p className="text-xs text-gray-400 font-medium">{label}</p>
+      <p className="font-outfit font-bold text-gray-900">{value}</p>
+    </div>
   </div>
 );
 
@@ -45,6 +58,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [monthlyData, setMonthlyData] = useState([]);
   const [recentOrders, setRecentOrders] = useState([]);
@@ -61,7 +75,9 @@ const AdminDashboard = () => {
         setStats(statsRes.data);
         setMonthlyData(monthlyRes.data || []);
         const ordersData = ordersRes.data;
-        setRecentOrders(Array.isArray(ordersData) ? ordersData.slice(0, 5) : (ordersData.orders || []).slice(0, 5));
+        setRecentOrders(
+          Array.isArray(ordersData) ? ordersData.slice(0, 5) : (ordersData.orders || []).slice(0, 5)
+        );
       } catch (err) {
         console.error("Dashboard fetch error:", err);
       } finally {
@@ -85,10 +101,10 @@ const AdminDashboard = () => {
   }
 
   const orderStatusData = [
+    { name: "Pending", value: stats.pendingOrders || 0 },
     { name: "Processing", value: stats.processingOrders || 0 },
-    { name: "Confirmed", value: stats.confirmedOrders || 0 },
-    { name: "Shipped", value: stats.shippedOrders || 0 },
     { name: "Delivered", value: stats.deliveredOrders || 0 },
+    { name: "Returned", value: stats.returnedOrders || 0 },
     { name: "Cancelled", value: stats.cancelledOrders || 0 },
   ];
 
@@ -110,7 +126,7 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Stats Cards */}
+        {/* Primary Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <StatCard
             icon={FiShoppingBag} label="Total Orders" value={stats.totalOrders}
@@ -123,7 +139,7 @@ const AdminDashboard = () => {
           />
           <StatCard
             icon={FiTruck} label="Delivered" value={stats.deliveredOrders}
-            sub={`${stats.totalOrders ? Math.round((stats.deliveredOrders / stats.totalOrders) * 100) : 0}% success rate`}
+            sub={`${stats.conversionRate}% success rate`}
             gradient="bg-gradient-to-br from-violet-500 to-violet-700" iconBg="bg-white/20"
           />
           <StatCard
@@ -132,7 +148,56 @@ const AdminDashboard = () => {
           />
         </div>
 
-        {/* Charts Row */}
+        {/* Today & Monthly Revenue */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <MiniStatCard icon={FiDollarSign} label="Today's Revenue"
+            value={`₹${(stats.todayRevenue || 0).toLocaleString("en-IN")}`} color="bg-emerald-500" />
+          <MiniStatCard icon={FiTrendingUp} label="This Month's Revenue"
+            value={`₹${(stats.monthRevenue || 0).toLocaleString("en-IN")}`} color="bg-blue-500" />
+          <MiniStatCard icon={FiAlertCircle} label="Pending Orders"
+            value={stats.pendingOrders || 0} color="bg-orange-500" />
+          <MiniStatCard icon={FiPackage} label="Today's Orders"
+            value={stats.todayOrders || 0} color="bg-indigo-500" />
+        </div>
+
+        {/* Analytics Indicators */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Conversion Rate</p>
+              <FiPercent className="w-4 h-4 text-emerald-500" />
+            </div>
+            <p className="font-outfit font-black text-3xl text-emerald-600">{stats.conversionRate}%</p>
+            <p className="text-xs text-gray-400 mt-1">Orders delivered / Total orders</p>
+            <div className="mt-3 h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-2 bg-emerald-500 rounded-full transition-all" style={{ width: `${stats.conversionRate}%` }} />
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Refund Rate</p>
+              <FiRotateCcw className="w-4 h-4 text-red-500" />
+            </div>
+            <p className="font-outfit font-black text-3xl text-red-500">{stats.refundRate}%</p>
+            <p className="text-xs text-gray-400 mt-1">Refunded / Total orders</p>
+            <div className="mt-3 h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-2 bg-red-400 rounded-full transition-all" style={{ width: `${Math.min(stats.refundRate, 100)}%` }} />
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Cancellation Rate</p>
+              <FiXCircle className="w-4 h-4 text-orange-500" />
+            </div>
+            <p className="font-outfit font-black text-3xl text-orange-500">{stats.cancellationRate}%</p>
+            <p className="text-xs text-gray-400 mt-1">Cancelled / Total orders</p>
+            <div className="mt-3 h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-2 bg-orange-400 rounded-full transition-all" style={{ width: `${Math.min(stats.cancellationRate, 100)}%` }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Monthly Revenue */}
           <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-card p-6">
@@ -157,9 +222,7 @@ const AdminDashboard = () => {
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} width={45} />
                 <Tooltip content={<CustomTooltip />} />
-                <Area
-                  type="monotone" dataKey="revenue"
-                  stroke="#4F46E5" strokeWidth={2.5}
+                <Area type="monotone" dataKey="revenue" stroke="#4F46E5" strokeWidth={2.5}
                   fill="url(#colorRevenue)"
                   dot={{ r: 4, fill: "#4F46E5", strokeWidth: 0 }}
                   activeDot={{ r: 6, fill: "#4F46E5", strokeWidth: 3, stroke: "#EEF2FF" }}
@@ -180,8 +243,7 @@ const AdminDashboard = () => {
                 <XAxis dataKey="name" tick={{ fontSize: 9, fill: "#9CA3AF" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={24}
-                  fill="#4F46E5" />
+                <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={24} fill="#4F46E5" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -201,7 +263,9 @@ const AdminDashboard = () => {
           ) : (
             <div className="divide-y divide-gray-50">
               {recentOrders.map((order) => (
-                <div key={order._id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
+                <div key={order._id}
+                  onClick={() => navigate(`/admin/orders/${order._id}`)}
+                  className="px-6 py-4 flex items-center justify-between hover:bg-gray-50/50 transition-colors cursor-pointer">
                   <div className="flex items-center gap-4">
                     <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-xs">
                       {order.user?.name?.charAt(0)?.toUpperCase() || "G"}
@@ -215,7 +279,8 @@ const AdminDashboard = () => {
                     <p className="font-outfit font-bold text-sm text-gray-900">₹{order.totalPrice?.toLocaleString("en-IN")}</p>
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${order.status === "Delivered" ? "bg-green-100 text-green-700" :
                         order.status === "Cancelled" ? "bg-red-100 text-red-700" :
-                          "bg-yellow-100 text-yellow-700"
+                          order.status === "Refunded" ? "bg-teal-100 text-teal-700" :
+                            "bg-yellow-100 text-yellow-700"
                       }`}>
                       {order.status}
                     </span>
@@ -224,6 +289,21 @@ const AdminDashboard = () => {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Quick Stats Row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {[
+            { label: "Returned", value: stats.returnedOrders || 0, color: "text-yellow-600", bg: "bg-yellow-50" },
+            { label: "Refunded", value: stats.refundedOrders || 0, color: "text-teal-600", bg: "bg-teal-50" },
+            { label: "Cancelled", value: stats.cancelledOrders || 0, color: "text-red-600", bg: "bg-red-50" },
+            { label: "Processing", value: stats.processingOrders || 0, color: "text-blue-600", bg: "bg-blue-50" },
+          ].map(({ label, value, color, bg }) => (
+            <div key={label} className={`rounded-2xl ${bg} border border-gray-100 p-4`}>
+              <p className="text-xs font-medium text-gray-400">{label}</p>
+              <p className={`font-outfit font-black text-2xl ${color}`}>{value}</p>
+            </div>
+          ))}
         </div>
       </div>
     </AdminLayout>

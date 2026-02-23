@@ -10,12 +10,12 @@ import {
 
 /* ─── Static data ─────────────────────────────────────────────── */
 const CATEGORIES = [
-  { name: "Women", emoji: "👗", color: "from-rose-400 to-pink-500", desc: "Ethnic & Western" },
-  { name: "Men", emoji: "👔", color: "from-sky-400 to-blue-600", desc: "Formal & Casual" },
-  { name: "Kids", emoji: "🧒", color: "from-yellow-400 to-orange-500", desc: "Fun & Comfortable" },
-  { name: "Sarees", emoji: "🥻", color: "from-primary-400 to-primary-600", desc: "Traditional Beauty" },
-  { name: "Kurtis", emoji: "✨", color: "from-teal-400 to-emerald-600", desc: "Everyday Elegance" },
-  { name: "Lehengas", emoji: "💃", color: "from-accent-500 to-orange-500", desc: "Festive Collection" },
+  { name: "Women", path: "/category/Women", emoji: "👗", color: "from-rose-400 to-pink-500", desc: "Ethnic & Western" },
+  { name: "Men", path: "/category/Men", emoji: "👔", color: "from-sky-400 to-blue-600", desc: "Formal & Casual" },
+  { name: "Kids", path: "/category/Kids", emoji: "🧒", color: "from-yellow-400 to-orange-500", desc: "Fun & Comfortable" },
+  { name: "Sarees", path: "/category/Women?sub=Sarees", emoji: "🥻", color: "from-primary-400 to-primary-600", desc: "Traditional Beauty" },
+  { name: "Kurtis", path: "/category/Women?sub=Kurtis", emoji: "✨", color: "from-teal-400 to-emerald-600", desc: "Everyday Elegance" },
+  { name: "Lehengas", path: "/category/Women?sub=Lehengas", emoji: "💃", color: "from-accent-500 to-orange-500", desc: "Festive Collection" },
 ];
 
 const FEATURES = [
@@ -161,7 +161,7 @@ const Home = () => {
                 Shop Now <FiArrowRight className="group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link
-                to="/category/Sarees"
+                to="/category/Women?sub=Sarees"
                 className="inline-flex items-center gap-2 bg-white/10 border border-white/25 text-white font-semibold px-8 py-4 rounded-2xl hover:bg-white/20 backdrop-blur-sm transition-all hover:scale-105 active:scale-95"
               >
                 Explore Sarees
@@ -278,7 +278,7 @@ const Home = () => {
           {CATEGORIES.map((cat, i) => (
             <Link
               key={cat.name}
-              to={`/category/${cat.name}`}
+              to={cat.path}
               className="reveal"
               style={{ transitionDelay: `${i * 80}ms` }}
             >
@@ -456,7 +456,7 @@ const Home = () => {
                 Create Account & Save <FiArrowRight />
               </Link>
               <Link
-                to="/category/Sarees"
+                to="/category/Women?sub=Sarees"
                 className="inline-flex items-center gap-2 border-2 border-white/30 text-white font-semibold px-8 py-4 rounded-2xl hover:bg-white/10 transition-all"
               >
                 Browse Sarees

@@ -76,11 +76,19 @@ const Footer = () => {
           <div>
             <h4 className="font-outfit font-bold text-white mb-5 text-base">Shop Categories</h4>
             <ul className="space-y-3">
-              {["Women", "Men", "Kids", "Sarees", "Suits", "Kurtis", "Lehengas"].map((cat) => (
-                <li key={cat}>
-                  <Link to={`/category/${cat}`} className="text-gray-400 hover:text-primary-400 text-sm transition-colors flex items-center gap-1.5 group">
+              {[
+                { label: "👔 Men's Collection", to: "/category/Men" },
+                { label: "👗 Women's Collection", to: "/category/Women" },
+                { label: "🧒 Kids' Collection", to: "/category/Kids" },
+                { label: "🥻 Sarees", to: "/category/Women?sub=Sarees" },
+                { label: "✨ Lehengas", to: "/category/Women?sub=Lehengas" },
+                { label: "👘 Kurtis", to: "/category/Women?sub=Kurtis" },
+                { label: "🎽 Kurtas", to: "/category/Men?sub=Kurtas" },
+              ].map(({ label, to }) => (
+                <li key={label}>
+                  <Link to={to} className="text-gray-400 hover:text-primary-400 text-sm transition-colors flex items-center gap-1.5 group">
                     <span className="w-1.5 h-1.5 rounded-full bg-accent-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    {cat}
+                    {label}
                   </Link>
                 </li>
               ))}

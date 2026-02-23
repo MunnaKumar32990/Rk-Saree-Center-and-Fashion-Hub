@@ -2,10 +2,64 @@ import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
-import { FiShoppingCart, FiHeart, FiUser, FiSearch, FiMenu, FiX, FiChevronDown, FiLogOut, FiPackage, FiGrid } from "react-icons/fi";
+import { FiShoppingCart, FiHeart, FiUser, FiSearch, FiMenu, FiX, FiChevronDown, FiLogOut, FiPackage, FiGrid, FiChevronRight } from "react-icons/fi";
 import useDebounce from "../hooks/useDebounce";
 
-const CATEGORIES = ["Men", "Women", "Kids", "Sarees", "Suits", "Kurtis", "Lehengas"];
+const CATEGORY_MENU = [
+  {
+    name: "Men",
+    emoji: "👔",
+    subcategories: ["Shirts", "T-Shirts", "Jeans", "Kurtas", "Sherwani", "Shorts", "Pajamas", "Track Pants"],
+  },
+  {
+    name: "Women",
+    emoji: "👗",
+    subcategories: ["Sarees", "Lehengas", "Suits", "Kurtis", "Dupatta", "Blouses", "Chunni", "Undergarments"],
+  },
+  {
+    name: "Kids",
+    emoji: "🧒",
+    subcategories: ["Boys Wear", "Girls Wear", "Kids T-Shirts", "Kids Shorts", "Kurta Sets", "Frocks", "Kids Lehenga"],
+  },
+];
+
+// ─── Mobile Category Item with expandable subcategories ──────────────────────
+const MobileCategoryItem = ({ cat, onClose }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <div className="flex items-center">
+        <Link
+          to={`/category/${cat.name}`}
+          onClick={onClose}
+          className="flex-1 flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-gray-800 hover:bg-primary-50 hover:text-primary-600 transition-colors"
+        >
+          <span>{cat.emoji}</span> {cat.name}
+        </Link>
+        <button
+          onClick={() => setOpen(!open)}
+          className="p-2 text-gray-500 hover:text-primary-600"
+        >
+          <FiChevronDown className={`w-4 h-4 transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+      </div>
+      {open && (
+        <div className="ml-4 mr-2 mb-1 grid grid-cols-2 gap-1">
+          {cat.subcategories.map((sub) => (
+            <Link
+              key={sub}
+              to={`/category/${cat.name}?sub=${encodeURIComponent(sub)}`}
+              onClick={onClose}
+              className="px-3 py-2 text-xs text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+            >
+              {sub}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Header = () => {
   const navigate = useNavigate();
@@ -54,8 +108,8 @@ const Header = () => {
   return (
     <header
       className={`sticky top-0 z-50 transition-all duration-300 ${scrolled
-          ? "bg-white/90 backdrop-blur-xl shadow-md border-b border-gray-100"
-          : "bg-white shadow-sm"
+        ? "bg-white/90 backdrop-blur-xl shadow-md border-b border-gray-100"
+        : "bg-white shadow-sm"
         }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -93,7 +147,7 @@ const Header = () => {
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-1">
-            {/* Categories Dropdown */}
+            {/* Categories Mega-Dropdown */}
             <div ref={catRef} className="relative">
               <button
                 onClick={() => setCatDropdown(!catDropdown)}
@@ -102,16 +156,31 @@ const Header = () => {
                 Categories <FiChevronDown className={`transition-transform ${catDropdown ? "rotate-180" : ""}`} />
               </button>
               {catDropdown && (
-                <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-brand-lg border border-gray-100 py-2 animate-slide-down z-50">
-                  {CATEGORIES.map((cat) => (
-                    <Link
-                      key={cat}
-                      to={`/category/${cat}`}
-                      onClick={() => setCatDropdown(false)}
-                      className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-colors"
-                    >
-                      {cat}
-                    </Link>
+                <div className="absolute top-full left-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 py-5 animate-slide-down z-50 flex gap-0" style={{ minWidth: '600px' }}>
+                  {CATEGORY_MENU.map((cat, idx) => (
+                    <div key={cat.name} className={`flex-1 px-5 ${idx < CATEGORY_MENU.length - 1 ? 'border-r border-gray-100' : ''}`}>
+                      <Link
+                        to={`/category/${cat.name}`}
+                        onClick={() => setCatDropdown(false)}
+                        className="flex items-center gap-2 mb-3 group"
+                      >
+                        <span className="text-lg">{cat.emoji}</span>
+                        <span className="font-outfit font-bold text-sm text-gray-900 group-hover:text-primary-600 transition-colors">{cat.name}</span>
+                        <FiChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-primary-500 ml-auto transition-colors" />
+                      </Link>
+                      <div className="space-y-1">
+                        {cat.subcategories.map((sub) => (
+                          <Link
+                            key={sub}
+                            to={`/category/${cat.name}?sub=${encodeURIComponent(sub)}`}
+                            onClick={() => setCatDropdown(false)}
+                            className="block px-2 py-1.5 text-xs text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                          >
+                            {sub}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
@@ -239,15 +308,8 @@ const Header = () => {
       {menuOpen && (
         <div className="md:hidden bg-white border-t border-gray-100 animate-slide-down">
           <nav className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-1">
-            {CATEGORIES.map((cat) => (
-              <Link
-                key={cat}
-                to={`/category/${cat}`}
-                onClick={() => setMenuOpen(false)}
-                className="px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-colors"
-              >
-                {cat}
-              </Link>
+            {CATEGORY_MENU.map((cat) => (
+              <MobileCategoryItem key={cat.name} cat={cat} onClose={() => setMenuOpen(false)} />
             ))}
             <div className="border-t border-gray-100 mt-2 pt-2">
               {userInfo ? (

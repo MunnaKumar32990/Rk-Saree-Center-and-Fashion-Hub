@@ -33,11 +33,22 @@ const productSchema = mongoose.Schema(
     category: {
       type: String,
       required: [true, "Category is required"],
-      enum: ["Men", "Women", "Kids", "Sarees", "Suits", "Kurtis", "Lehengas"],
+      enum: ["Men", "Women", "Kids"],
     },
     subcategory: {
       type: String,
       default: "",
+      enum: [
+        "",
+        // Men
+        "Shirts", "T-Shirts", "Jeans", "Kurtas", "Sherwani", "Shorts", "Pajamas", "Track Pants",
+        // Women
+        "Sarees", "Lehengas", "Suits", "Kurtis", "Dupatta", "Blouses", "Chunni", "Undergarments",
+        // Kids
+        "Boys Wear", "Girls Wear",
+        // Kids sub-sub
+        "Kids T-Shirts", "Kids Shorts", "Kurta Sets", "Frocks", "Kids Lehenga",
+      ],
     },
     description: {
       type: String,
@@ -63,6 +74,15 @@ const productSchema = mongoose.Schema(
     sizes: {
       type: [String],
       default: [],
+    },
+    colors: {
+      type: [String],
+      default: [],
+    },
+    sku: {
+      type: String,
+      trim: true,
+      sparse: true,
     },
     reviews: [reviewSchema],
     rating: {
