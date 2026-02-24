@@ -55,14 +55,20 @@ const PlaceOrder = () => {
     setCouponLoading(true);
     setCouponError("");
     try {
-      const { data } = await api.post("/orders/coupon/validate", {
+      const { data } = await api.post("/coupons/validate", {
         code: c,
-        orderTotal: itemsPrice + shippingPrice,
+        orderAmount: itemsPrice + shippingPrice,
       });
-      setAppliedCoupon(data);
-      setCouponInput(data.code);
+      // Backend returns: { valid, coupon: { code, description, ... }, discountAmount }
+      const applied = {
+        code: data.coupon.code,
+        description: data.coupon.description,
+        discount: data.discountAmount,
+      };
+      setAppliedCoupon(applied);
+      setCouponInput(applied.code);
       setShowCoupons(false);
-      toast.success(`🎉 Coupon "${data.code}" applied! You save ₹${data.discount}`);
+      toast.success(`🎉 Coupon "${applied.code}" applied! You save ₹${applied.discount}`);
     } catch (err) {
       setCouponError(err.response?.data?.message || "Invalid coupon");
       setAppliedCoupon(null);
