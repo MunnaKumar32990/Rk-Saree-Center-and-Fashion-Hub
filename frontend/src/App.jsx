@@ -39,6 +39,7 @@ import AdminEditProduct from "./admin/AdminEditProduct";
 import AdminOrders from "./admin/AdminOrders";
 import AdminOrderDetails from "./admin/AdminOrderDetails";
 import AdminUsers from "./admin/AdminUsers";
+import AdminCoupons from "./admin/AdminCoupons";
 
 // Private Route Guard
 const PrivateRoute = ({ children }) => {
@@ -81,6 +82,7 @@ const AppLayout = () => (
         <Route path="/admin/orders" element={<AdminRoute><AdminOrders /></AdminRoute>} />
         <Route path="/admin/orders/:id" element={<AdminRoute><AdminOrderDetails /></AdminRoute>} />
         <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+        <Route path="/admin/coupons" element={<AdminRoute><AdminCoupons /></AdminRoute>} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

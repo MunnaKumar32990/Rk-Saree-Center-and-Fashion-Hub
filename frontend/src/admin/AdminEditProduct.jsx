@@ -111,7 +111,7 @@ const AdminEditProduct = () => {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [countInStock, setCountInStock] = useState("");
-  const [sizes, setSizes] = useState("");
+  const [sizes, setSizes] = useState([]);
   const [colors, setColors] = useState("");
   const [sku, setSku] = useState("");
   const [discount, setDiscount] = useState("");
@@ -133,7 +133,7 @@ const AdminEditProduct = () => {
         setDescription(data.description || "");
         setPrice(data.price);
         setCountInStock(data.countInStock);
-        setSizes(data.sizes?.join(", ") || "");
+        setSizes(data.sizes || []);
         setColors(data.colors?.join(", ") || "");
         setSku(data.sku || "");
         setDiscount(data.discount || "");
@@ -165,7 +165,7 @@ const AdminEditProduct = () => {
           category, subcategory, description,
           price: Number(price),
           countInStock: Number(countInStock),
-          sizes: sizes ? sizes.split(",").map((s) => s.trim()).filter(Boolean) : [],
+          sizes: sizes,
           colors: colors ? colors.split(",").map((c) => c.trim()).filter(Boolean) : [],
           sku, discount: Number(discount) || 0, isFeatured,
         },
@@ -260,9 +260,27 @@ const AdminEditProduct = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Sizes (comma-separated)</label>
-                  <input className="w-full border border-gray-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-400 text-sm"
-                    placeholder="S, M, L, XL" value={sizes} onChange={(e) => setSizes(e.target.value)} />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Sizes</label>
+                  <div className="flex flex-wrap gap-2">
+                    {["Free Size", "S", "M", "L", "XL", "XXL"].map((size) => (
+                      <button
+                        key={size}
+                        type="button"
+                        onClick={() => setSizes(prev =>
+                          prev.includes(size) ? prev.filter(s => s !== size) : [...prev, size]
+                        )}
+                        className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all ${sizes.includes(size)
+                            ? "bg-primary-600 border-primary-600 text-white shadow-sm"
+                            : "bg-white border-gray-200 text-gray-600 hover:border-primary-400 hover:text-primary-600"
+                          }`}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                  {sizes.length > 0 && (
+                    <p className="text-xs text-primary-600 font-semibold mt-2">Selected: {sizes.join(", ")}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Colors (comma-separated)</label>

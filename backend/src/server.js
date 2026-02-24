@@ -12,6 +12,7 @@ import orderRoutes from "./routes/orderRoutes.js";
 import contactRoutes from "./routes/contactRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
+import couponRoutes from "./routes/couponRoutes.js";
 
 import { notFound, errorHandler } from "./middlewares/errorMiddleware.js";
 
@@ -82,6 +83,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/payment", paymentRoutes);
+app.use("/api/coupons", couponRoutes);
 
 // Health check
 app.get("/", (req, res) => {

@@ -1,6 +1,13 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
+const loginHistorySchema = mongoose.Schema({
+  ip: { type: String, default: "" },
+  userAgent: { type: String, default: "" },
+  status: { type: String, enum: ["success", "failed"], default: "success" },
+  timestamp: { type: Date, default: Date.now },
+});
+
 const userSchema = mongoose.Schema(
   {
     name: {
@@ -33,6 +40,16 @@ const userSchema = mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Account status
+    status: {
+      type: String,
+      enum: ["Active", "Suspended", "Banned"],
+      default: "Active",
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
     address: {
       street: { type: String, default: "" },
       city: { type: String, default: "" },
@@ -46,6 +63,15 @@ const userSchema = mongoose.Schema(
         ref: "Product",
       },
     ],
+    // Security tracking
+    lastLogin: { type: Date, default: null },
+    failedLoginAttempts: { type: Number, default: 0 },
+    loginHistory: {
+      type: [loginHistorySchema],
+      default: [],
+    },
+    // Force logout token version
+    tokenVersion: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

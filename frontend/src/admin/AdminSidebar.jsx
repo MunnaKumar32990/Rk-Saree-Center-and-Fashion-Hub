@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import {
   FiGrid, FiPackage, FiShoppingBag, FiUsers,
-  FiArrowLeft, FiSettings
+  FiArrowLeft, FiTag
 } from "react-icons/fi";
 
 const navLinks = [
@@ -9,6 +9,7 @@ const navLinks = [
   { name: "Products", path: "/admin/products", icon: FiShoppingBag },
   { name: "Orders", path: "/admin/orders", icon: FiPackage },
   { name: "Users", path: "/admin/users", icon: FiUsers },
+  { name: "Coupons", path: "/admin/coupons", icon: FiTag },
 ];
 
 const AdminSidebar = () => {
@@ -39,8 +40,8 @@ const AdminSidebar = () => {
               key={path}
               to={path}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${isActive
-                  ? "bg-primary-600 text-white shadow-brand"
-                  : "text-white/60 hover:bg-white/8 hover:text-white"
+                ? "bg-primary-600 text-white shadow-brand"
+                : "text-white/60 hover:bg-white/8 hover:text-white"
                 }`}
             >
               <Icon className="w-4 h-4 flex-shrink-0" />
