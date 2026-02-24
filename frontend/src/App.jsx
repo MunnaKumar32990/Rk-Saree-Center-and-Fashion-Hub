@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
 // Context Providers
@@ -42,6 +43,15 @@ import AdminOrderDetails from "./admin/AdminOrderDetails";
 import AdminUsers from "./admin/AdminUsers";
 import AdminCoupons from "./admin/AdminCoupons";
 import AdminAnnouncements from "./admin/AdminAnnouncements";
+
+// Scroll to top on every route change
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+};
 
 // Private Route Guard
 const PrivateRoute = ({ children }) => {
@@ -98,6 +108,7 @@ const AppLayout = () => (
 
 const App = () => (
   <Router>
+    <ScrollToTop />
     <AuthProvider>
       <CartProvider>
         <WishlistProvider>
