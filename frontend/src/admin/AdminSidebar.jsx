@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import {
   FiGrid, FiPackage, FiShoppingBag, FiUsers,
-  FiArrowLeft, FiTag
+  FiArrowLeft, FiTag, FiBell
 } from "react-icons/fi";
 
 const navLinks = [
@@ -10,6 +10,7 @@ const navLinks = [
   { name: "Orders", path: "/admin/orders", icon: FiPackage },
   { name: "Users", path: "/admin/users", icon: FiUsers },
   { name: "Coupons", path: "/admin/coupons", icon: FiTag },
+  { name: "Announcements", path: "/admin/announcements", icon: FiBell },
 ];
 
 const AdminSidebar = () => {

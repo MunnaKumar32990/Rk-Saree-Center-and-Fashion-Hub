@@ -9,6 +9,7 @@ import { WishlistProvider } from "./context/WishlistContext";
 // Layout
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+import AnnouncementBanner from "./components/AnnouncementBanner";
 
 // Pages
 import Home from "./pages/Home";
@@ -40,6 +41,7 @@ import AdminOrders from "./admin/AdminOrders";
 import AdminOrderDetails from "./admin/AdminOrderDetails";
 import AdminUsers from "./admin/AdminUsers";
 import AdminCoupons from "./admin/AdminCoupons";
+import AdminAnnouncements from "./admin/AdminAnnouncements";
 
 // Private Route Guard
 const PrivateRoute = ({ children }) => {
@@ -50,6 +52,7 @@ const PrivateRoute = ({ children }) => {
 // Main layout wrapper (needs to be inside Router for Header to use navigate)
 const AppLayout = () => (
   <div className="flex flex-col min-h-screen">
+    <AnnouncementBanner />
     <Header />
     <main className="flex-grow">
       <Routes>
@@ -83,6 +86,7 @@ const AppLayout = () => (
         <Route path="/admin/orders/:id" element={<AdminRoute><AdminOrderDetails /></AdminRoute>} />
         <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
         <Route path="/admin/coupons" element={<AdminRoute><AdminCoupons /></AdminRoute>} />
+        <Route path="/admin/announcements" element={<AdminRoute><AdminAnnouncements /></AdminRoute>} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

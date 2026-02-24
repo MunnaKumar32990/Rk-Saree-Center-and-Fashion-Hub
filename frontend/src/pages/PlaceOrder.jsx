@@ -57,7 +57,7 @@ const PlaceOrder = () => {
     try {
       const { data } = await api.post("/coupons/validate", {
         code: c,
-        orderAmount: itemsPrice + shippingPrice,
+        orderAmount: itemsPrice,
       });
       // Backend returns: { valid, coupon: { code, description, ... }, discountAmount }
       const applied = {
@@ -101,9 +101,10 @@ const PlaceOrder = () => {
         itemsPrice,
         shippingPrice,
         taxPrice: 0,
-        totalPrice,
+        discountPrice: discount,
         couponCode: appliedCoupon?.code || null,
-        discount,
+        couponDiscount: discount,
+        totalPrice,
       });
       navigate(`/payment/${data._id}`);
     } catch (error) {
