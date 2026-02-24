@@ -2,8 +2,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
-import { FiShoppingCart, FiHeart, FiUser, FiSearch, FiMenu, FiX, FiChevronDown, FiLogOut, FiPackage, FiGrid, FiChevronRight } from "react-icons/fi";
+import { FiShoppingCart, FiHeart, FiUser, FiSearch, FiMenu, FiX, FiChevronDown, FiLogOut, FiPackage, FiGrid, FiChevronRight, FiMapPin } from "react-icons/fi";
 import useDebounce from "../hooks/useDebounce";
+import LocationWidget from "./LocationWidget";
 
 const CATEGORY_MENU = [
   {
@@ -60,6 +61,69 @@ const MobileCategoryItem = ({ cat, onClose }) => {
     </div>
   );
 };
+
+// ─── Mobile Location Button ───────────────────────────────────────────────────
+const STORAGE_KEY = "rk_user_location";
+
+const MobileLocationButton = () => {
+  const [location, setLocation] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try { setLocation(JSON.parse(saved)); } catch { /* ignore */ }
+    }
+  }, []);
+
+  const detect = () => {
+    if (!navigator.geolocation || loading) return;
+    setLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+            { headers: { "Accept-Language": "en" } }
+          );
+          const data = await res.json();
+          const addr = data.address || {};
+          const city = addr.city || addr.town || addr.village || addr.state || "Your Location";
+          const pincode = addr.postcode || "";
+          const locationData = { city, pincode };
+          setLocation(locationData);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...locationData, full: data.display_name }));
+        } catch { /* ignore */ }
+        setLoading(false);
+      },
+      () => setLoading(false),
+      { timeout: 10000 }
+    );
+  };
+
+  return (
+    <button
+      onClick={detect}
+      disabled={loading}
+      className="flex items-center gap-3 w-full px-4 py-3 text-sm text-gray-700 hover:bg-primary-50 rounded-xl transition-colors"
+    >
+      <FiMapPin className={`w-4 h-4 ${loading ? "text-amber-500 animate-pulse" : "text-primary-600"}`} />
+      {loading ? (
+        <span className="text-amber-600 font-medium">Detecting location…</span>
+      ) : location ? (
+        <span>
+          📍 <span className="font-semibold">{location.city}</span>
+          {location.pincode && <span className="text-gray-400 ml-1">{location.pincode}</span>}
+          <span className="text-xs text-primary-500 ml-2">(tap to update)</span>
+        </span>
+      ) : (
+        <span className="text-primary-600 font-semibold">Detect My Location</span>
+      )}
+    </button>
+  );
+};
+
 
 const Header = () => {
   const navigate = useNavigate();
@@ -127,6 +191,9 @@ const Header = () => {
               RK Saree & Fashion
             </span>
           </Link>
+
+          {/* Location Widget - Desktop */}
+          <LocationWidget />
 
           {/* Search Bar - Desktop */}
           <form
@@ -311,6 +378,9 @@ const Header = () => {
             {CATEGORY_MENU.map((cat) => (
               <MobileCategoryItem key={cat.name} cat={cat} onClose={() => setMenuOpen(false)} />
             ))}
+            {/* Mobile Location Button */}
+            <MobileLocationButton />
+
             <div className="border-t border-gray-100 mt-2 pt-2">
               {userInfo ? (
                 <>
