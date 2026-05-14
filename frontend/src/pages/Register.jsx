@@ -29,9 +29,8 @@ const Register = () => {
         email: form.email,
         password: form.password,
       });
-      login(data);
-      toast.success(`Welcome, ${data.name}! 🎉 Account created successfully.`);
-      navigate("/");
+      toast.success(data.message || "Registration successful! Please check your email to verify your account.");
+      navigate("/login");
     } catch (err) {
       toast.error(err.response?.data?.message || "Registration failed");
     } finally {

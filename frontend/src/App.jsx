@@ -22,6 +22,10 @@ import Register from "./pages/Register";
 import Profile from "./pages/Profile";
 import MyOrders from "./pages/MyOrders";
 import Wishlist from "./pages/Wishlist";
+import VerifyEmail from "./pages/VerifyEmail";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import TwoFactorAuth from "./pages/TwoFactorAuth";
 
 // Lazy-imported pages (optional future enhancement)
 import Checkout from "./pages/checkout";
@@ -73,6 +77,10 @@ const AppLayout = () => (
         <Route path="/cart" element={<Cart />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/verify-email/:token" element={<VerifyEmail />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
+        <Route path="/2fa" element={<TwoFactorAuth />} />
         <Route path="/contact" element={<ContactUs />} />
         <Route path="/shipping" element={<ShippingInfo />} />
         <Route path="/search" element={<Category />} />

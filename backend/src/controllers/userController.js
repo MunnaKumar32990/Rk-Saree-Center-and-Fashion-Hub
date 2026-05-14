@@ -2,6 +2,8 @@ import User from "../models/User.js";
 import Order from "../models/Order.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import generateToken from "../utils/generateToken.js";
+import { generateVerificationToken, sendVerificationEmail, sendPasswordResetEmail, send2FACode } from "../utils/emailService.js";
+import crypto from "crypto";
 
 // ─── Audit Log (in-memory for simplicity, stored in MongoDB via a simple array) ──
 // We'll use a simple approach: track changes in a dedicated structure
@@ -18,16 +20,29 @@ export const registerUser = asyncHandler(async (req, res) => {
     throw new Error("User already exists with this email");
   }
 
-  const user = await User.create({ name, email, password });
+  const verificationToken = generateVerificationToken();
+  const user = await User.create({
+    name,
+    email,
+    password,
+    emailVerificationToken: verificationToken,
+    emailVerificationExpires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+  });
+
+  // Send verification email
+  try {
+    await sendVerificationEmail(email, verificationToken, name);
+  } catch (error) {
+    console.error("Email send error:", error);
+  }
 
   res.status(201).json({
     _id: user._id,
     name: user.name,
     email: user.email,
     isAdmin: user.isAdmin,
-    phone: user.phone,
-    avatar: user.avatar,
-    token: generateToken(user._id, user.tokenVersion),
+    isEmailVerified: user.isEmailVerified,
+    message: "Registration successful. Please check your email to verify your account.",
   });
 });
 
@@ -52,10 +67,37 @@ export const loginUser = asyncHandler(async (req, res) => {
       throw new Error("Your account is suspended. Contact support.");
     }
 
+    // Check email verification (OPTIONAL - can be disabled for existing users)
+    // Uncomment the lines below to make email verification mandatory:
+    /*
+    if (!user.isEmailVerified) {
+      res.status(403);
+      throw new Error("Please verify your email before logging in. Check your inbox or request a new verification link.");
+    }
+    */
+
+    // If 2FA is enabled, send code and don't login yet
+    if (user.twoFactorEnabled) {
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      user.twoFactorCode = code;
+      user.twoFactorExpires = Date.now() + 10 * 60 * 1000;
+      await user.save();
+
+      try {
+        await send2FACode(email, code, user.name);
+      } catch (error) {
+        console.error("2FA email error:", error);
+      }
+
+      return res.json({
+        requires2FA: true,
+        message: "2FA code sent to your email",
+      });
+    }
+
     // Reset failed attempts, update lastLogin
     user.failedLoginAttempts = 0;
     user.lastLogin = new Date();
-    // Keep login history (last 20)
     user.loginHistory.unshift({ ip, userAgent, status: "success" });
     if (user.loginHistory.length > 20) user.loginHistory = user.loginHistory.slice(0, 20);
     await user.save();
@@ -69,6 +111,7 @@ export const loginUser = asyncHandler(async (req, res) => {
       phone: user.phone,
       avatar: user.avatar,
       address: user.address,
+      twoFactorEnabled: user.twoFactorEnabled,
       token: generateToken(user._id, user.tokenVersion),
     });
   } else {
@@ -385,4 +428,204 @@ export const getWishlist = asyncHandler(async (req, res) => {
   }
 
   res.json(user.wishlist);
+});
+
+// @desc    Verify email
+// @route   GET /api/users/verify-email/:token
+// @access  Public
+export const verifyEmail = asyncHandler(async (req, res) => {
+  const user = await User.findOne({
+    emailVerificationToken: req.params.token,
+    emailVerificationExpires: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    res.status(400);
+    throw new Error("Invalid or expired verification token");
+  }
+
+  user.isEmailVerified = true;
+  user.emailVerificationToken = undefined;
+  user.emailVerificationExpires = undefined;
+  await user.save();
+
+  res.json({ message: "Email verified successfully. You can now login." });
+});
+
+// @desc    Resend verification email
+// @route   POST /api/users/resend-verification
+// @access  Public
+export const resendVerification = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+
+  if (user.isEmailVerified) {
+    res.status(400);
+    throw new Error("Email already verified");
+  }
+
+  const verificationToken = generateVerificationToken();
+  user.emailVerificationToken = verificationToken;
+  user.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000;
+  await user.save();
+
+  await sendVerificationEmail(email, verificationToken, user.name);
+  res.json({ message: "Verification email sent" });
+});
+
+// @desc    Request password reset
+// @route   POST /api/users/forgot-password
+// @access  Public
+export const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+
+  const resetToken = generateVerificationToken();
+  user.passwordResetToken = resetToken;
+  user.passwordResetExpires = Date.now() + 60 * 60 * 1000; // 1 hour
+  await user.save();
+
+  await sendPasswordResetEmail(email, resetToken, user.name);
+  res.json({ message: "Password reset email sent" });
+});
+
+// @desc    Reset password
+// @route   POST /api/users/reset-password/:token
+// @access  Public
+export const resetPassword = asyncHandler(async (req, res) => {
+  const user = await User.findOne({
+    passwordResetToken: req.params.token,
+    passwordResetExpires: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    res.status(400);
+    throw new Error("Invalid or expired reset token");
+  }
+
+  user.password = req.body.password;
+  user.passwordResetToken = undefined;
+  user.passwordResetExpires = undefined;
+  user.tokenVersion = (user.tokenVersion || 0) + 1;
+  await user.save();
+
+  res.json({ message: "Password reset successful. Please login." });
+});
+
+// @desc    Enable 2FA
+// @route   POST /api/users/2fa/enable
+// @access  Private
+export const enable2FA = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+
+  user.twoFactorEnabled = true;
+  user.twoFactorSecret = crypto.randomBytes(20).toString("hex");
+  await user.save();
+
+  res.json({ message: "2FA enabled successfully" });
+});
+
+// @desc    Disable 2FA
+// @route   POST /api/users/2fa/disable
+// @access  Private
+export const disable2FA = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+
+  user.twoFactorEnabled = false;
+  user.twoFactorSecret = undefined;
+  await user.save();
+
+  res.json({ message: "2FA disabled successfully" });
+});
+
+// @desc    Send 2FA code
+// @route   POST /api/users/2fa/send-code
+// @access  Public
+export const send2FACodeHandler = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  const user = await User.findOne({ email });
+
+  if (!user || !user.twoFactorEnabled) {
+    res.status(400);
+    throw new Error("2FA not enabled for this account");
+  }
+
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  user.twoFactorCode = code;
+  user.twoFactorExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+  await user.save();
+
+  await send2FACode(email, code, user.name);
+  res.json({ message: "2FA code sent to your email" });
+});
+
+// @desc    Verify 2FA code
+// @route   POST /api/users/2fa/verify
+// @access  Public
+export const verify2FACode = asyncHandler(async (req, res) => {
+  const { email, code } = req.body;
+  const user = await User.findOne({
+    email,
+    twoFactorCode: code,
+    twoFactorExpires: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    res.status(400);
+    throw new Error("Invalid or expired 2FA code");
+  }
+
+  user.twoFactorCode = undefined;
+  user.twoFactorExpires = undefined;
+  user.lastLogin = new Date();
+  await user.save();
+
+  res.json({
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    isAdmin: user.isAdmin,
+    token: generateToken(user._id, user.tokenVersion),
+  });
+});
+
+// @desc    Check user email verification status (Debug endpoint)
+// @route   POST /api/users/check-status
+// @access  Public
+export const checkUserStatus = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  const user = await User.findOne({ email }).select("-password -loginHistory");
+
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+
+  res.json({
+    email: user.email,
+    name: user.name,
+    isEmailVerified: user.isEmailVerified,
+    status: user.status,
+    isAdmin: user.isAdmin,
+    twoFactorEnabled: user.twoFactorEnabled,
+    createdAt: user.createdAt,
+  });
 });

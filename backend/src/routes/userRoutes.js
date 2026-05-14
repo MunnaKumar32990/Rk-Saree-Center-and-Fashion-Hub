@@ -15,6 +15,15 @@ import {
     getWishlist,
     deleteUser,
     bulkDeleteUsers,
+    verifyEmail,
+    resendVerification,
+    forgotPassword,
+    resetPassword,
+    enable2FA,
+    disable2FA,
+    send2FACodeHandler,
+    verify2FACode,
+    checkUserStatus,
 } from "../controllers/userController.js";
 import { protect, admin } from "../middlewares/authMiddleware.js";
 
@@ -23,11 +32,22 @@ const router = express.Router();
 // Auth (public)
 router.post("/register", registerUser);
 router.post("/login", loginUser);
+router.post("/check-status", checkUserStatus);
+router.get("/verify-email/:token", verifyEmail);
+router.post("/resend-verification", resendVerification);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password/:token", resetPassword);
+router.post("/2fa/send-code", send2FACodeHandler);
+router.post("/2fa/verify", verify2FACode);
 
 // User profile (must come BEFORE /:id)
 router.route("/profile")
     .get(protect, getUserProfile)
     .put(protect, updateUserProfile);
+
+// 2FA management
+router.post("/2fa/enable", protect, enable2FA);
+router.post("/2fa/disable", protect, disable2FA);
 
 // Wishlist (must come BEFORE /:id)
 router.get("/wishlist", protect, getWishlist);

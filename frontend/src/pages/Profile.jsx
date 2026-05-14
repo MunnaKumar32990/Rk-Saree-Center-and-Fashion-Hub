@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 import toast from "react-hot-toast";
-import { FiUser, FiMail, FiPhone, FiMapPin, FiSave } from "react-icons/fi";
+import { FiUser, FiMail, FiPhone, FiMapPin, FiSave, FiShield } from "react-icons/fi";
 
 const Profile = () => {
   const { userInfo, updateUser } = useAuth();
@@ -21,6 +21,7 @@ const Profile = () => {
   });
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState("profile");
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(userInfo?.twoFactorEnabled || false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -67,7 +68,7 @@ const Profile = () => {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Tabs */}
         <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-8 w-fit">
-          {["profile", "address", "password"].map((t) => (
+          {["profile", "address", "password", "security"].map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -188,6 +189,48 @@ const Profile = () => {
                 />
               </div>
               <p className="text-sm text-gray-500">Leave blank to keep your current password.</p>
+            </div>
+          )}
+
+          {tab === "security" && (
+            <div className="space-y-5">
+              <h2 className="font-outfit font-bold text-gray-900 text-lg mb-6">Security Settings</h2>
+              <div className="bg-purple-50 border border-purple-200 rounded-xl p-6">
+                <div className="flex items-start gap-4">
+                  <div className="bg-purple-100 p-3 rounded-lg">
+                    <FiShield className="text-purple-600 w-6 h-6" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900 mb-1">Two-Factor Authentication</h3>
+                    <p className="text-sm text-gray-600 mb-4">Add an extra layer of security to your account by requiring a code sent to your email.</p>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          if (twoFactorEnabled) {
+                            await api.post("/users/2fa/disable");
+                            setTwoFactorEnabled(false);
+                            toast.success("2FA disabled");
+                          } else {
+                            await api.post("/users/2fa/enable");
+                            setTwoFactorEnabled(true);
+                            toast.success("2FA enabled");
+                          }
+                        } catch (error) {
+                          toast.error("Failed to update 2FA settings");
+                        }
+                      }}
+                      className={`px-6 py-2 rounded-lg font-semibold text-sm transition-all ${
+                        twoFactorEnabled
+                          ? "bg-red-500 text-white hover:bg-red-600"
+                          : "bg-purple-600 text-white hover:bg-purple-700"
+                      }`}
+                    >
+                      {twoFactorEnabled ? "Disable 2FA" : "Enable 2FA"}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

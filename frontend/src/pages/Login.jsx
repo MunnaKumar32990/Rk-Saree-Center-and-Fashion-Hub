@@ -17,6 +17,14 @@ const Login = () => {
     setLoading(true);
     try {
       const { data } = await api.post("/users/login", form);
+      
+      // Check if 2FA is required
+      if (data.requires2FA) {
+        toast.success(data.message);
+        navigate("/2fa", { state: { email: form.email } });
+        return;
+      }
+      
       login(data);
       toast.success(`Welcome back, ${data.name}! 🎉`, { style: { borderRadius: "12px" } });
       navigate(data.isAdmin ? "/admin/dashboard" : "/");

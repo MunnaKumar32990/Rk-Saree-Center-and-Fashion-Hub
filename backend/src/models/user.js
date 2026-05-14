@@ -50,6 +50,17 @@ const userSchema = mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    emailVerificationToken: String,
+    emailVerificationExpires: Date,
+    passwordResetToken: String,
+    passwordResetExpires: Date,
+    twoFactorSecret: String,
+    twoFactorEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    twoFactorCode: String,
+    twoFactorExpires: Date,
     address: {
       street: { type: String, default: "" },
       city: { type: String, default: "" },
