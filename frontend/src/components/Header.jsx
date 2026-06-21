@@ -187,7 +187,7 @@ const Header = () => {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-outfit font-bold text-sm">
               RK
             </div>
-            <span className="font-outfit font-bold text-lg text-brand-dark hidden sm:block group-hover:text-primary-600 transition-colors">
+            <span className="font-outfit font-bold text-sm sm:text-lg text-brand-dark block group-hover:text-primary-600 transition-colors">
               RK Saree & Fashion
             </span>
           </Link>
