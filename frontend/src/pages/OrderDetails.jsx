@@ -44,6 +44,8 @@ export default function OrderDetails() {
   const [reason, setReason] = useState("");
   const [reasonDetail, setReasonDetail] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   const fetchOrder = async () => {
     try {
@@ -74,6 +76,20 @@ export default function OrderDetails() {
       toast.error(err.response?.data?.message || "Failed to submit return request");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleCancelOrder = async () => {
+    setCancelling(true);
+    try {
+      await api.put(`/orders/${id}/cancel`);
+      toast.success("Order cancelled successfully");
+      setShowCancelConfirm(false);
+      await fetchOrder();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to cancel order");
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -143,6 +159,7 @@ export default function OrderDetails() {
   const isCancelled = order.status === "Cancelled";
   const isDelivered = order.status === "Delivered";
   const canReturn = isDelivered && !returnReq;
+  const canCancel = ["Pending Payment", "Confirmed"].includes(order.status);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
@@ -430,6 +447,44 @@ export default function OrderDetails() {
                   </form>
                 )}
               </>
+            )}
+          </div>
+        )}
+        {/* ── Cancel Order ── */}
+        {canCancel && (
+          <div className="bg-white rounded-2xl border border-red-100 shadow-sm p-6">
+            <h2 className="font-semibold text-gray-900 text-sm mb-2">Cancel Order</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              You can cancel this order before it has been packed. Once packed or shipped, cancellation is not possible.
+            </p>
+            {!showCancelConfirm ? (
+              <button
+                onClick={() => setShowCancelConfirm(true)}
+                className="flex items-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all"
+              >
+                ❌ Cancel This Order
+              </button>
+            ) : (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <p className="text-sm font-semibold text-red-800 mb-3">
+                  Are you sure you want to cancel this order? This action cannot be undone.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleCancelOrder}
+                    disabled={cancelling}
+                    className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all disabled:opacity-50"
+                  >
+                    {cancelling ? "Cancelling..." : "Yes, Cancel Order"}
+                  </button>
+                  <button
+                    onClick={() => setShowCancelConfirm(false)}
+                    className="bg-gray-100 text-gray-700 px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-gray-200 transition-all"
+                  >
+                    Keep Order
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         )}

@@ -23,7 +23,6 @@ import {
     disable2FA,
     send2FACodeHandler,
     verify2FACode,
-    checkUserStatus,
 } from "../controllers/userController.js";
 import { protect, admin } from "../middlewares/authMiddleware.js";
 
@@ -32,7 +31,7 @@ const router = express.Router();
 // Auth (public)
 router.post("/register", registerUser);
 router.post("/login", loginUser);
-router.post("/check-status", checkUserStatus);
+// NOTE: /check-status was removed — it exposed user data without authentication
 router.get("/verify-email/:token", verifyEmail);
 router.post("/resend-verification", resendVerification);
 router.post("/forgot-password", forgotPassword);

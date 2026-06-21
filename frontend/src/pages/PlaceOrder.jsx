@@ -3,6 +3,8 @@ import { useNavigate, Link } from "react-router-dom";
 import api from "../services/api";
 import { useCart } from "../context/CartContext";
 import toast from "react-hot-toast";
+import { Helmet } from "react-helmet-async";
+import { calculateShipping } from "../utils/pricing";
 import {
   FiMapPin, FiTag, FiCheck, FiX, FiLoader, FiShoppingBag,
   FiArrowLeft, FiLock, FiPercent, FiGift, FiPhone, FiPackage
@@ -23,6 +25,7 @@ const PlaceOrder = () => {
   const navigate = useNavigate();
   const { cartItems, clearCart } = useCart();
   const [loading, setLoading] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("Razorpay"); // "Razorpay" | "COD"
 
   // ── Coupon state ──────────────────────────────────────────────────────────
   const [couponInput, setCouponInput] = useState("");
@@ -43,7 +46,7 @@ const PlaceOrder = () => {
 
   // ── Price calculations ────────────────────────────────────────────────────
   const itemsPrice = cartItems.reduce((acc, item) => acc + item.price * item.qty, 0);
-  const shippingPrice = itemsPrice > 2000 ? 0 : 100;
+  const shippingPrice = calculateShipping(itemsPrice);
   const discount = appliedCoupon?.discount || 0;
   const totalPrice = Math.max(0, itemsPrice + shippingPrice - discount);
 
@@ -95,18 +98,22 @@ const PlaceOrder = () => {
           image: item.image,
           price: item.price,
           product: item._id,
+          size: item.size || "",
+          color: item.selectedColor || "",
         })),
         shippingAddress,
-        paymentMethod: "Razorpay",
-        itemsPrice,
-        shippingPrice,
-        taxPrice: 0,
-        discountPrice: discount,
+        paymentMethod,
         couponCode: appliedCoupon?.code || null,
         couponDiscount: discount,
-        totalPrice,
       });
-      navigate(`/payment/${data._id}`);
+
+      clearCart();
+      if (paymentMethod === "COD") {
+        // COD orders bypass payment — go straight to success
+        navigate("/success", { state: { orderId: data._id, isCOD: true } });
+      } else {
+        navigate(`/payment/${data._id}`);
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to place order. Please try again.");
     } finally {
@@ -307,25 +314,74 @@ const PlaceOrder = () => {
                 )}
               </div>
 
-              {/* Payment method badge */}
-              <div className="flex items-center gap-2 mb-5 p-3 bg-gray-50 rounded-xl border border-gray-100">
-                <img src="https://razorpay.com/assets/razorpay-logo-white.svg" alt="Razorpay" className="h-4 invert opacity-70" onError={(e) => e.target.style.display = "none"} />
-                <span className="text-xs text-gray-500">Secure payment via <span className="font-semibold text-gray-700">Razorpay</span></span>
-                <FiLock className="w-3.5 h-3.5 text-gray-400 ml-auto" />
+              {/* Payment Method Selector */}
+              <div className="mb-5">
+                <p className="text-sm font-bold text-gray-800 mb-3">Payment Method</p>
+                <div className="space-y-2">
+                  {/* Razorpay */}
+                  <button
+                    onClick={() => setPaymentMethod("Razorpay")}
+                    className={`w-full flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-all ${
+                      paymentMethod === "Razorpay"
+                        ? "border-primary-500 bg-primary-50"
+                        : "border-gray-200 hover:border-gray-300 bg-white"
+                    }`}
+                  >
+                    <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
+                      paymentMethod === "Razorpay" ? "border-primary-500" : "border-gray-300"
+                    }`}>
+                      {paymentMethod === "Razorpay" && <div className="w-2 h-2 bg-primary-500 rounded-full" />}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-gray-900">Pay Online</p>
+                      <p className="text-xs text-gray-500">Cards, UPI, Net Banking via Razorpay</p>
+                    </div>
+                    <FiLock className="w-4 h-4 text-gray-400" />
+                  </button>
+
+                  {/* COD */}
+                  <button
+                    onClick={() => setPaymentMethod("COD")}
+                    className={`w-full flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-all ${
+                      paymentMethod === "COD"
+                        ? "border-green-500 bg-green-50"
+                        : "border-gray-200 hover:border-gray-300 bg-white"
+                    }`}
+                  >
+                    <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
+                      paymentMethod === "COD" ? "border-green-500" : "border-gray-300"
+                    }`}>
+                      {paymentMethod === "COD" && <div className="w-2 h-2 bg-green-500 rounded-full" />}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-gray-900">Cash on Delivery</p>
+                      <p className="text-xs text-gray-500">Pay ₹{totalPrice.toLocaleString()} when delivered</p>
+                    </div>
+                    <span className="text-lg">💵</span>
+                  </button>
+                </div>
               </div>
 
               <button
                 onClick={placeOrderHandler}
                 disabled={loading}
-                className="btn-shine w-full bg-gradient-to-r from-primary-600 to-primary-700 text-white py-4 rounded-xl font-bold text-base hover:shadow-brand-lg transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+                className={`btn-shine w-full py-4 rounded-xl font-bold text-base transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100 ${
+                  paymentMethod === "COD"
+                    ? "bg-gradient-to-r from-green-500 to-green-600 text-white hover:shadow-[0_8px_25px_rgba(34,197,94,0.4)]"
+                    : "bg-gradient-to-r from-primary-600 to-primary-700 text-white hover:shadow-brand-lg"
+                }`}
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
                     <FiLoader className="w-5 h-5 animate-spin" /> Processing…
                   </span>
+                ) : paymentMethod === "COD" ? (
+                  <span className="flex items-center justify-center gap-2">
+                    💵 Confirm COD Order — ₹{totalPrice.toLocaleString()}
+                  </span>
                 ) : (
                   <span className="flex items-center justify-center gap-2">
-                    <FiLock className="w-4 h-4" /> Place Order — ₹{totalPrice.toLocaleString()}
+                    <FiLock className="w-4 h-4" /> Pay Now — ₹{totalPrice.toLocaleString()}
                   </span>
                 )}
               </button>

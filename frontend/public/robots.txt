@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# Block admin panel from being indexed
+Disallow: /admin/
+
+# Block checkout flow from indexing (no SEO value)
+Disallow: /checkout
+Disallow: /placeorder
+Disallow: /payment/
+Disallow: /success
+
+# Sitemap
+Sitemap: https://rksareefashionhub.com/sitemap.xml

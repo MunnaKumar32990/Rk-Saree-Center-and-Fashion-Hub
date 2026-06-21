@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
+import { Helmet } from "react-helmet-async";
+import { calculateShipping } from "../utils/pricing";
 import {
   FiMapPin, FiPhone, FiGlobe, FiArrowRight, FiArrowLeft,
   FiShoppingBag, FiTag, FiCheck, FiX, FiHome
@@ -43,7 +45,7 @@ const Checkout = () => {
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
   const totalPrice = cartItems.reduce((acc, item) => acc + item.price * item.qty, 0);
-  const shippingPrice = totalPrice > 2000 ? 0 : 100;
+  const shippingPrice = calculateShipping(totalPrice);
 
   const submitHandler = (e) => {
     e.preventDefault();

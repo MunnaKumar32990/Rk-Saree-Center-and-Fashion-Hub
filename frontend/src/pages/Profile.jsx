@@ -16,8 +16,9 @@ const Profile = () => {
       state: userInfo?.address?.state || "",
       pinCode: userInfo?.address?.postalCode || userInfo?.address?.pinCode || "",
     },
-    password: "",
+    currentPassword: "",
     newPassword: "",
+    confirmPassword: "",
   });
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState("profile");
@@ -25,9 +26,23 @@ const Profile = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (form.newPassword && form.newPassword.length < 6) {
-      toast.error("New password must be at least 6 characters");
-      return;
+    if (tab === "password") {
+      if (!form.currentPassword) {
+        toast.error("Please enter your current password");
+        return;
+      }
+      if (!form.newPassword) {
+        toast.error("Please enter a new password");
+        return;
+      }
+      if (form.newPassword.length < 6) {
+        toast.error("New password must be at least 6 characters");
+        return;
+      }
+      if (form.newPassword !== form.confirmPassword) {
+        toast.error("Passwords do not match");
+        return;
+      }
     }
     setLoading(true);
     try {
@@ -36,12 +51,16 @@ const Profile = () => {
         phone: form.phone,
         address: form.address,
       };
-      if (form.newPassword) {
+      if (tab === "password" && form.newPassword) {
+        payload.currentPassword = form.currentPassword;
         payload.password = form.newPassword;
       }
       const { data } = await api.put("/users/profile", payload);
       updateUser(data);
       toast.success("Profile updated successfully! ✅");
+      if (tab === "password") {
+        setForm(f => ({ ...f, currentPassword: "", newPassword: "", confirmPassword: "" }));
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || "Update failed");
     } finally {
@@ -179,6 +198,17 @@ const Profile = () => {
             <div className="space-y-5">
               <h2 className="font-outfit font-bold text-gray-900 text-lg mb-6">Change Password</h2>
               <div>
+                <label className="text-sm font-semibold text-gray-700 mb-2 block">Current Password</label>
+                <input
+                  type="password"
+                  placeholder="Enter your current password"
+                  value={form.currentPassword}
+                  onChange={(e) => setForm({ ...form, currentPassword: e.target.value })}
+                  className="w-full px-4 py-3.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  required
+                />
+              </div>
+              <div>
                 <label className="text-sm font-semibold text-gray-700 mb-2 block">New Password</label>
                 <input
                   type="password"
@@ -188,7 +218,17 @@ const Profile = () => {
                   className="w-full px-4 py-3.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
-              <p className="text-sm text-gray-500">Leave blank to keep your current password.</p>
+              <div>
+                <label className="text-sm font-semibold text-gray-700 mb-2 block">Confirm New Password</label>
+                <input
+                  type="password"
+                  placeholder="Re-enter new password"
+                  value={form.confirmPassword}
+                  onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                  className="w-full px-4 py-3.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <p className="text-sm text-gray-500">You will need your current password to set a new one.</p>
             </div>
           )}
 

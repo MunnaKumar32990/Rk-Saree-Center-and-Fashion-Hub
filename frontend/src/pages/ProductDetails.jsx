@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import api from "../services/api";
 import { useCart } from "../context/CartContext";
 import { useWishlist } from "../context/WishlistContext";
@@ -7,8 +8,11 @@ import { useAuth } from "../context/AuthContext";
 import { PageLoader } from "../components/Loader";
 import StarRating from "../components/StarRating";
 import ProductCard from "../components/ProductCard";
+import SizeGuideModal from "../components/SizeGuideModal";
+import RecentlyViewed, { useRecentlyViewed } from "../components/RecentlyViewed";
 import toast from "react-hot-toast";
-import { FiHeart, FiShoppingCart, FiPackage, FiArrowLeft } from "react-icons/fi";
+import { cardImage, detailImage, thumbImage, productAlt } from "../utils/cloudinary";
+import { FiHeart, FiShoppingCart, FiPackage, FiArrowLeft, FiMaximize2, FiShare2 } from "react-icons/fi";
 import { FaHeart } from "react-icons/fa";
 
 const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
@@ -25,7 +29,13 @@ const ProductDetails = () => {
   const [loading, setLoading] = useState(true);
   const [selectedImg, setSelectedImg] = useState(0);
   const [selectedSize, setSelectedSize] = useState("");
+  const [selectedColor, setSelectedColor] = useState("");
   const [qty, setQty] = useState(1);
+  const [showSizeGuide, setShowSizeGuide] = useState(false);
+  const [notifyEmail, setNotifyEmail] = useState("");
+  const [notifySubmitted, setNotifySubmitted] = useState(false);
+
+  const { trackView } = useRecentlyViewed();
 
   // Review state
   const [rating, setRating] = useState(0);
@@ -40,6 +50,7 @@ const ProductDetails = () => {
       try {
         const { data } = await api.get(`/products/${id}`);
         setProduct(data);
+        trackView(data);
         // Fetch related
         const rel = await api.get(`/products?category=${data.category}&limit=4`);
         setRelated((rel.data.products || rel.data).filter((p) => p._id !== id));
@@ -58,9 +69,21 @@ const ProductDetails = () => {
       toast.error("Please select a size");
       return;
     }
-    addToCart(product, qty, selectedSize);
+    if (!selectedColor && product.colors?.length > 0) {
+      toast.error("Please select a color");
+      return;
+    }
+    addToCart({ ...product, selectedColor }, qty, selectedSize);
     toast.success("Added to cart! 🛒", { style: { borderRadius: "12px" } });
   };
+
+  // SEO helpers (computed before loading guard — product may be null here)
+  const seoTitle = product
+    ? `${product.name} | ${product.category} | RK Saree & Fashion Hub`
+    : "Product | RK Saree & Fashion Hub";
+  const seoDesc = product
+    ? `Buy ${product.name} at ₹${(product.discount > 0 ? Math.round(product.price * (1 - product.discount / 100)) : product.price)?.toLocaleString("en-IN")}. ${product.description?.slice(0, 120) || ""}... Free delivery above ₹2,000.`
+    : "";
 
   const handleWishlist = async () => {
     if (!userInfo) { toast.error("Please login first"); return; }
@@ -96,6 +119,48 @@ const ProductDetails = () => {
 
   return (
     <div className="min-h-screen bg-brand-bg">
+      <Helmet>
+        <title>{seoTitle}</title>
+        <meta name="description" content={seoDesc} />
+        <meta property="og:title" content={seoTitle} />
+        <meta property="og:description" content={seoDesc} />
+        {product?.image && <meta property="og:image" content={product.image} />}
+        <meta property="og:type" content="product" />
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Product",
+          "name": product.name,
+          "description": product.description,
+          "image": [product.image, ...(product.images || [])].filter(Boolean),
+          "brand": { "@type": "Brand", "name": product.brand || "RK Saree & Fashion Hub" },
+          "category": product.category,
+          "offers": {
+            "@type": "Offer",
+            "priceCurrency": "INR",
+            "price": discountedPrice || product.price,
+            "availability": product.countInStock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+            "seller": { "@type": "Organization", "name": "RK Saree & Fashion Hub" },
+          },
+          ...(product.numReviews > 0 && {
+            "aggregateRating": {
+              "@type": "AggregateRating",
+              "ratingValue": product.rating?.toFixed(1),
+              "reviewCount": product.numReviews,
+              "bestRating": "5",
+              "worstRating": "1"
+            }
+          })
+        })}</script>
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://rksareefashionhub.com" },
+            { "@type": "ListItem", "position": 2, "name": product.category, "item": `https://rksareefashionhub.com/category/${product.category}` },
+            { "@type": "ListItem", "position": 3, "name": product.name }
+          ]
+        })}</script>
+      </Helmet>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6">
@@ -112,9 +177,11 @@ const ProductDetails = () => {
           <div className="space-y-4">
             <div className="bg-white rounded-3xl overflow-hidden border border-gray-100 aspect-[3/4] relative group">
               <img
-                src={images[selectedImg]}
-                alt={product.name}
+                src={detailImage(images[selectedImg])}
+                alt={productAlt(product)}
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                width="800"
+                height="1067"
               />
               {product.discount > 0 && (
                 <div className="absolute top-4 left-4 bg-accent-500 text-white text-sm font-bold px-3 py-1.5 rounded-full">
@@ -131,7 +198,7 @@ const ProductDetails = () => {
                     className={`flex-shrink-0 w-20 h-24 rounded-xl overflow-hidden border-2 transition-all ${selectedImg === i ? "border-primary-500" : "border-gray-200 hover:border-gray-300"
                       }`}
                   >
-                    <img src={img} alt="" className="w-full h-full object-cover" />
+                    <img src={thumbImage(img)} alt={`${product.name} view ${i + 1}`} className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>
@@ -145,9 +212,27 @@ const ProductDetails = () => {
               {product.brand && <span className="text-gray-400 text-sm"> · {product.brand}</span>}
             </div>
 
-            <h1 className="font-outfit text-3xl sm:text-4xl font-bold text-gray-900 mb-4 leading-tight">
-              {product.name}
-            </h1>
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <h1 className="font-outfit text-3xl sm:text-4xl font-bold text-gray-900 leading-tight">
+                {product.name}
+              </h1>
+              <button
+                onClick={() => {
+                  const url = window.location.href;
+                  if (navigator.share) {
+                    navigator.share({ title: product.name, text: `Check out ${product.name} on RK Saree & Fashion Hub!`, url });
+                  } else {
+                    const wa = `https://wa.me/?text=${encodeURIComponent(`Check out ${product.name} on RK Saree & Fashion Hub! ${url}`)}`;
+                    window.open(wa, "_blank");
+                  }
+                }}
+                className="flex-shrink-0 w-10 h-10 rounded-xl border-2 border-gray-200 flex items-center justify-center text-gray-500 hover:border-primary-400 hover:text-primary-600 transition-all mt-1"
+                title="Share this product"
+                aria-label="Share product"
+              >
+                <FiShare2 className="w-4 h-4" />
+              </button>
+            </div>
 
             {/* Rating */}
             {product.numReviews > 0 && (
@@ -178,7 +263,15 @@ const ProductDetails = () => {
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-semibold text-gray-800">Size</span>
-                  {selectedSize && <span className="text-primary-600 text-sm font-medium">Selected: {selectedSize}</span>}
+                  <div className="flex items-center gap-2">
+                    {selectedSize && <span className="text-primary-600 text-sm font-medium">Selected: {selectedSize}</span>}
+                    <button
+                      onClick={() => setShowSizeGuide(true)}
+                      className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-semibold underline"
+                    >
+                      <FiMaximize2 className="w-3 h-3" /> Size Guide
+                    </button>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {product.sizes.map((sz) => (
@@ -191,6 +284,37 @@ const ProductDetails = () => {
                         }`}
                     >
                       {sz}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Color Selector */}
+            {product.colors?.length > 0 && (
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-sm font-semibold text-gray-800">Color</span>
+                  {selectedColor && (
+                    <span className="text-primary-600 text-sm font-medium capitalize">Selected: {selectedColor}</span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  {product.colors.map((color) => (
+                    <button
+                      key={color}
+                      title={color}
+                      onClick={() => setSelectedColor(color)}
+                      className={`relative w-9 h-9 rounded-full border-2 transition-all ${
+                        selectedColor === color
+                          ? "border-primary-600 scale-110 shadow-md"
+                          : "border-gray-300 hover:border-primary-400"
+                      }`}
+                      style={{ backgroundColor: color.toLowerCase() }}
+                    >
+                      {selectedColor === color && (
+                        <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold drop-shadow">✓</span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -227,6 +351,49 @@ const ProductDetails = () => {
                 {isLiked ? <FaHeart className="w-5 h-5" /> : <FiHeart className="w-5 h-5" />}
               </button>
             </div>
+
+            {/* Notify Me — when out of stock */}
+            {product.countInStock === 0 && (
+              <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5 mb-4">
+                <p className="font-semibold text-amber-900 text-sm mb-1">📦 Currently Out of Stock</p>
+                <p className="text-amber-700 text-xs mb-4">Leave your contact and we'll notify you the moment this is back in stock.</p>
+                {!notifySubmitted ? (
+                  <div className="flex gap-2">
+                    <input
+                      type="email"
+                      placeholder="your@email.com"
+                      value={notifyEmail}
+                      onChange={(e) => setNotifyEmail(e.target.value)}
+                      className="flex-1 px-3 py-2.5 rounded-xl border border-amber-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    />
+                    <button
+                      onClick={() => {
+                        if (!notifyEmail) { toast.error("Please enter your email"); return; }
+                        setNotifySubmitted(true);
+                        toast.success("We'll notify you when it's back! 🎉");
+                      }}
+                      className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl text-sm transition-all"
+                    >
+                      Notify Me
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-green-700 bg-green-50 rounded-xl px-4 py-3">
+                    <span>✅</span>
+                    <p className="text-sm font-semibold">You're on the list! We'll email you when stock is back.</p>
+                  </div>
+                )}
+                <a
+                  href={`https://wa.me/919708756854?text=Hi! I'm interested in ${encodeURIComponent(product.name)} but it's out of stock. Can you let me know when it's available?`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 flex items-center gap-2 text-green-700 text-xs font-semibold hover:underline"
+                >
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                  Or ask on WhatsApp
+                </a>
+              </div>
+            )}
 
             {/* Quick checkout */}
             {product.countInStock > 0 && (
@@ -321,6 +488,16 @@ const ProductDetails = () => {
           </section>
         )}
       </div>
+
+      {/* Recently Viewed (outside max-w container for full-width feel) */}
+      <RecentlyViewed currentProductId={id} />
+
+      {/* Size Guide Modal */}
+      <SizeGuideModal
+        isOpen={showSizeGuide}
+        onClose={() => setShowSizeGuide(false)}
+        category={product.category}
+      />
     </div>
   );
 };

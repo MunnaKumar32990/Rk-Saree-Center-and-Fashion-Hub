@@ -1,0 +1,37 @@
+{
+  "name": "RK Saree & Fashion Hub",
+  "short_name": "RK Saree",
+  "description": "Shop premium sarees, lehengas and ethnic wear from RK Saree Fashion Hub. Free delivery above ₹2,000.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0a1e",
+  "theme_color": "#7c3aed",
+  "orientation": "portrait-primary",
+  "lang": "en-IN",
+  "categories": ["shopping", "lifestyle"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "View Sarees",
+      "short_name": "Sarees",
+      "description": "Browse all sarees",
+      "url": "/category/Sarees",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "My Orders",
+      "short_name": "Orders",
+      "description": "Track your orders",
+      "url": "/myorders",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    }
+  ],
+  "screenshots": []
+}

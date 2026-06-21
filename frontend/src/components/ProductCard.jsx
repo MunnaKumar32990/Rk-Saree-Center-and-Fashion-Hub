@@ -5,6 +5,7 @@ import { useCart } from "../context/CartContext";
 import { useWishlist } from "../context/WishlistContext";
 import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
+import { cardImage, productAlt } from "../utils/cloudinary";
 
 const ProductCard = ({ product, delay = 0 }) => {
     const { addToCart } = useCart();
@@ -54,6 +55,13 @@ const ProductCard = ({ product, delay = 0 }) => {
                     </div>
                 )}
 
+                {/* Out of Stock badge */}
+                {product.countInStock === 0 && (
+                    <div className="absolute inset-0 z-10 bg-black/40 flex items-center justify-center rounded-2xl">
+                        <span className="bg-white text-gray-800 font-bold text-xs px-3 py-1.5 rounded-full shadow">Out of Stock</span>
+                    </div>
+                )}
+
                 {/* Wishlist Button */}
                 <button
                     onClick={handleWishlist}
@@ -66,10 +74,12 @@ const ProductCard = ({ product, delay = 0 }) => {
                 {/* Image */}
                 <Link to={`/product/${product._id}`} className="block overflow-hidden aspect-[3/4] relative">
                     <img
-                        src={product.image}
-                        alt={product.name}
+                        src={cardImage(product.image)}
+                        alt={productAlt(product)}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                         loading="lazy"
+                        width="400"
+                        height="533"
                     />
                     {/* Quick Add Overlay */}
                     <div className="absolute inset-0 bg-brand-dark/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4">

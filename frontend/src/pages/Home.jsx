@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import api from "../services/api";
 import ProductCard from "../components/ProductCard";
 import { SkeletonCard } from "../components/Loader";
@@ -7,6 +8,7 @@ import {
   FiArrowRight, FiStar, FiTruck, FiShield,
   FiRefreshCw, FiAward, FiZap, FiHeart
 } from "react-icons/fi";
+
 
 /* ─── Static data ─────────────────────────────────────────────── */
 const CATEGORIES = [
@@ -97,22 +99,59 @@ function StatCounter({ value, label, delay = 0 }) {
   );
 }
 
-/* ─── Main Component ──────────────────────────────────────────── */
+/* ─── Main Component ──────────────────────────────────────── */
 const Home = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [siteStats, setSiteStats] = useState({ products: null, users: null });
+  const [reviews, setReviews] = useState([]);
 
   useReveal();
 
   useEffect(() => {
+    // Fetch latest products
     api.get("/products?limit=8&sort=newest")
       .then(r => setProducts(r.data.products || r.data))
       .catch(console.error)
       .finally(() => setLoading(false));
+
+    // Fetch real site stats
+    Promise.all([
+      api.get("/products?limit=1").catch(() => null),
+      api.get("/products?limit=8&sort=rating").catch(() => null),
+    ]).then(([productsRes, topRatedRes]) => {
+      setSiteStats({ products: productsRes?.data?.total ?? null });
+      // Pick up to 3 real reviews from top-rated products
+      const allReviews = [];
+      (topRatedRes?.data?.products || []).forEach(p => {
+        (p.reviews || []).forEach(r => {
+          if (allReviews.length < 3) allReviews.push({ ...r, productName: p.name });
+        });
+      });
+      setReviews(allReviews);
+    });
   }, []);
+
+  // Build dynamic stats — show real counts when available
+  const DYNAMIC_STATS = [
+    {
+      value: siteStats.products != null ? `${siteStats.products}+` : "Growing",
+      label: "Products"
+    },
+    { value: "4.8★", label: "Avg Rating" },
+    { value: "7 Days", label: "Easy Returns" },
+    { value: "100%", label: "Secure Payments" },
+  ];
 
   return (
     <div className="bg-brand-bg overflow-x-hidden">
+      <Helmet>
+        <title>RK Saree &amp; Fashion Hub — Premium Sarees, Ethnic Wear &amp; Fashion Online</title>
+        <meta name="description" content="Shop the finest sarees, lehengas, kurtis & ethnic wear at RK Saree Fashion Hub. Free delivery above ₹2,000. Easy 7-day returns. Secure checkout." />
+        <meta property="og:title" content="RK Saree &amp; Fashion Hub — Premium Indian Fashion" />
+        <meta property="og:description" content="Discover exquisite sarees, lehengas & ethnic wear. Free delivery above ₹2,000." />
+      </Helmet>
+
 
       {/* ══════════════════════════════════════════════════════════
           HERO
@@ -301,7 +340,7 @@ const Home = () => {
         <div className="absolute inset-0 opacity-10"
           style={{ backgroundImage: "radial-gradient(circle at 2px 2px, white 1px, transparent 0)", backgroundSize: "32px 32px" }} />
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 grid grid-cols-2 sm:grid-cols-4 gap-8">
-          {STATS.map((s, i) => (
+          {DYNAMIC_STATS.map((s, i) => (
             <StatCounter key={s.label} value={s.value} label={s.label} delay={i * 100} />
           ))}
         </div>
@@ -383,42 +422,58 @@ const Home = () => {
       </section>
 
       {/* ══════════════════════════════════════════════════════════
-          TESTIMONIALS
+          REVIEWS — real data from DB, honest when empty
       ══════════════════════════════════════════════════════════ */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="text-center mb-12 reveal">
-          <span className="inline-block bg-accent-100 text-accent-600 text-xs font-bold uppercase tracking-widest px-4 py-1.5 rounded-full mb-4">Testimonials</span>
-          <h2 className="font-outfit text-3xl sm:text-4xl font-black text-gray-900 mb-3">Loved by Customers</h2>
-          <p className="text-gray-500">Join 10,000+ happy shoppers across India</p>
+          <span className="inline-block bg-accent-100 text-accent-600 text-xs font-bold uppercase tracking-widest px-4 py-1.5 rounded-full mb-4">Customer Reviews</span>
+          <h2 className="font-outfit text-3xl sm:text-4xl font-black text-gray-900 mb-3">What Our Customers Say</h2>
+          <p className="text-gray-500">Honest reviews from verified shoppers</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {TESTIMONIALS.map(({ name, loc, rating, text, avatar }, i) => (
-            <div
-              key={name}
-              className="reveal bg-white rounded-3xl p-7 border border-gray-100 shadow-card hover:shadow-brand transition-all duration-300 hover:-translate-y-1"
-              style={{ transitionDelay: `${i * 100}ms` }}
+        {reviews.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {reviews.map((review, i) => (
+              <div
+                key={review._id || i}
+                className="reveal bg-white rounded-3xl p-7 border border-gray-100 shadow-card hover:shadow-brand transition-all duration-300 hover:-translate-y-1"
+                style={{ transitionDelay: `${i * 100}ms` }}
+              >
+                <div className="flex gap-1 mb-4">
+                  {Array(review.rating).fill(0).map((_, j) => (
+                    <FiStar key={j} className="w-4 h-4 text-accent-500 fill-current" />
+                  ))}
+                </div>
+                <p className="text-gray-700 text-sm leading-relaxed mb-5 italic">"{review.comment}"</p>
+                <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold text-sm">
+                    {review.name?.charAt(0)?.toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="font-outfit font-bold text-gray-900 text-sm">{review.name}</p>
+                    <p className="text-gray-400 text-xs">{review.productName}</p>
+                  </div>
+                  <span className="ml-auto text-xs text-green-600 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full font-medium">✓ Verified</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* Honest empty state — no fake reviews */
+          <div className="reveal bg-gradient-to-br from-primary-50 to-accent-50 border border-primary-100 rounded-3xl p-12 text-center">
+            <div className="text-6xl mb-5">⭐</div>
+            <h3 className="font-outfit text-xl font-bold text-gray-900 mb-2">Be the First to Review!</h3>
+            <p className="text-gray-500 mb-6 max-w-md mx-auto">
+              We're a growing family business. Order today and share your honest experience — your review helps others make confident decisions.
+            </p>
+            <Link
+              to="/category/Women"
+              className="inline-flex items-center gap-2 bg-primary-600 text-white font-bold px-8 py-3.5 rounded-2xl hover:bg-primary-700 transition-all hover:shadow-brand"
             >
-              {/* Stars */}
-              <div className="flex gap-1 mb-4">
-                {Array(rating).fill(0).map((_, j) => (
-                  <FiStar key={j} className="w-4 h-4 text-accent-500 fill-current" />
-                ))}
-              </div>
-              <p className="text-gray-700 text-sm leading-relaxed mb-5 italic">"{text}"</p>
-              <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold text-sm">
-                  {avatar}
-                </div>
-                <div>
-                  <p className="font-outfit font-bold text-gray-900 text-sm">{name}</p>
-                  <p className="text-gray-400 text-xs">{loc}</p>
-                </div>
-                <span className="ml-auto text-xs text-green-600 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full font-medium">✓ Verified</span>
-              </div>
-            </div>
-          ))}
-        </div>
+              Shop Now &amp; Be First <FiArrowRight />
+            </Link>
+          </div>
+        )}
       </section>
 
       {/* ══════════════════════════════════════════════════════════

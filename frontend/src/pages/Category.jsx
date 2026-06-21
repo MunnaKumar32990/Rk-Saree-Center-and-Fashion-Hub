@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import api from "../services/api";
 import ProductCard from "../components/ProductCard";
 import FilterSidebar from "../components/FilterSidebar";
 import Pagination from "../components/Pagination";
 import { SkeletonCard } from "../components/Loader";
-import { FiGrid, FiList, FiSliders } from "react-icons/fi";
+import { FiSliders, FiSearch } from "react-icons/fi";
 
 const SORT_OPTIONS = [
   { label: "Newest First", value: "newest" },
@@ -16,6 +17,9 @@ const SORT_OPTIONS = [
 
 const Category = () => {
   const { categoryName } = useParams();
+  const [searchParams] = useSearchParams();
+  const keyword = searchParams.get("keyword") || "";
+
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -31,20 +35,28 @@ const Category = () => {
     maxPrice: "",
   });
 
+  // Reset on route change
   useEffect(() => {
     setFilters((prev) => ({ ...prev, category: categoryName || "" }));
     setPage(1);
   }, [categoryName]);
+
+  // Reset page when keyword changes
+  useEffect(() => {
+    setPage(1);
+  }, [keyword]);
 
   useEffect(() => {
     const fetchProducts = async () => {
       setLoading(true);
       try {
         const params = new URLSearchParams({ page, limit: 12, sort });
+        if (keyword) params.set("keyword", keyword);
         if (filters.category) params.set("category", filters.category);
         if (filters.size) params.set("size", filters.size);
         if (filters.rating) params.set("rating", filters.rating);
         if (filters.maxPrice) params.set("maxPrice", filters.maxPrice);
+        if (filters.minPrice) params.set("minPrice", filters.minPrice);
 
         const { data } = await api.get(`/products?${params}`);
         setProducts(data.products || data);
@@ -57,20 +69,44 @@ const Category = () => {
       }
     };
     fetchProducts();
-  }, [filters, sort, page]);
+  }, [filters, sort, page, keyword]);
 
   const handleFilterChange = (newFilters) => {
     setFilters(newFilters);
     setPage(1);
   };
 
+  // Dynamic page title
+  const pageTitle = keyword
+    ? `Search: "${keyword}"`
+    : categoryName
+    ? categoryName
+    : "All Products";
+
+  const seoTitle = keyword
+    ? `Search results for "${keyword}" | RK Saree & Fashion Hub`
+    : categoryName
+    ? `${categoryName}'s Collection | RK Saree & Fashion Hub`
+    : "All Products | RK Saree & Fashion Hub";
+
   return (
     <div className="min-h-screen bg-brand-bg">
+      <Helmet>
+        <title>{seoTitle}</title>
+        <meta name="description" content={`Shop ${pageTitle} at RK Saree & Fashion Hub. Free delivery above ₹2,000.`} />
+      </Helmet>
+
       {/* Page Header */}
       <div className="bg-gradient-to-r from-brand-dark to-primary-900 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {keyword && (
+            <div className="flex items-center gap-2 text-primary-300 text-sm mb-2">
+              <FiSearch className="w-4 h-4" />
+              <span>Search results for</span>
+            </div>
+          )}
           <h1 className="font-outfit text-3xl sm:text-4xl font-bold text-white mb-2">
-            {categoryName || "All Products"}
+            {pageTitle}
           </h1>
           <p className="text-gray-300 text-sm">
             {!loading && <span>{total} products found</span>}

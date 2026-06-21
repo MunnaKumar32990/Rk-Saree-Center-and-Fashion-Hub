@@ -18,6 +18,7 @@ import {
   getReturnRequests,
   getReturnRequestByOrder,
   updateReturnRequest,
+  cancelOrder,
 } from "../controllers/orderController.js";
 import { protect, admin } from "../middlewares/authMiddleware.js";
 
@@ -57,5 +58,8 @@ router.put("/:id/deliver", protect, admin, markOrderDelivered);
 // ── Return per order ──────────────────────────────────────────────────────────
 router.post("/:id/return", protect, createReturnRequest);
 router.get("/:id/return", protect, getReturnRequestByOrder);
+
+// ── Customer cancellation ─────────────────────────────────────────────────────
+router.put("/:id/cancel", protect, cancelOrder);
 
 export default router;

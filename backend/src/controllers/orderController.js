@@ -33,6 +33,12 @@ const buildOrderFilter = (query) => {
   return filter;
 };
 
+// ─── Pricing constants (must match frontend/src/utils/pricing.js) ────────────
+const FREE_SHIPPING_THRESHOLD = 2000;
+const SHIPPING_COST = 100;
+
+const calcShipping = (subtotal) => (subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST);
+
 // ─── Create Order ─────────────────────────────────────────────────────────────
 // @route POST /api/orders
 // @access Private
@@ -42,13 +48,8 @@ export const addOrderItems = asyncHandler(async (req, res) => {
     shippingAddress,
     billingAddress,
     paymentMethod,
-    itemsPrice,
-    shippingPrice,
-    taxPrice,
-    discountPrice,
     couponCode,
-    couponDiscount,
-    totalPrice,
+    couponDiscount: clientCouponDiscount,
     orderNotes,
   } = req.body;
 
@@ -57,28 +58,79 @@ export const addOrderItems = asyncHandler(async (req, res) => {
     throw new Error("No order items");
   }
 
+  // ── Step 1: Fetch real prices from DB ──────────────────────────────────────
+  const productIds = orderItems.map((item) => item.product || item._id);
+  const dbProducts = await Product.find({ _id: { $in: productIds } });
+
+  if (dbProducts.length !== productIds.length) {
+    res.status(400);
+    throw new Error("One or more products not found");
+  }
+
+  // ── Step 2: Build verified order items with server-side prices ──────────────
+  const verifiedItems = orderItems.map((item) => {
+    const dbProduct = dbProducts.find(
+      (p) => p._id.toString() === (item.product || item._id)?.toString()
+    );
+    if (!dbProduct) throw new Error(`Product not found: ${item.name}`);
+    if (dbProduct.countInStock < item.qty) {
+      throw new Error(`Insufficient stock for: ${dbProduct.name}`);
+    }
+
+    // Use DB price — always, never the client's price
+    const unitPrice = dbProduct.discount > 0
+      ? Math.round(dbProduct.price * (1 - dbProduct.discount / 100))
+      : dbProduct.price;
+
+    return {
+      name: dbProduct.name,
+      qty: item.qty,
+      image: item.image || dbProduct.image,
+      price: unitPrice,
+      product: dbProduct._id,
+      size: item.size || "",
+      color: item.color || "",
+    };
+  });
+
+  // ── Step 3: Server-side totals ─────────────────────────────────────────────
+  const itemsPrice = verifiedItems.reduce((sum, i) => sum + i.price * i.qty, 0);
+  const shippingPrice = calcShipping(itemsPrice);
+
+  // Validate coupon discount if applied
+  let couponDiscount = 0;
+  if (couponCode && clientCouponDiscount > 0) {
+    // Cap discount at order total — can't go negative
+    couponDiscount = Math.min(clientCouponDiscount, itemsPrice);
+  }
+
+  const taxPrice = 0;
+  const totalPrice = Math.max(0, itemsPrice + shippingPrice + taxPrice - couponDiscount);
+
   const initialStatus = paymentMethod === "COD" ? "Confirmed" : "Pending Payment";
 
   const order = await Order.create({
     user: req.user._id,
-    orderItems,
+    orderItems: verifiedItems,
     shippingAddress,
     billingAddress: billingAddress || { sameAsShipping: true },
     paymentMethod,
     itemsPrice,
     shippingPrice,
-    taxPrice: taxPrice || 0,
-    discountPrice: discountPrice || 0,
+    taxPrice,
+    discountPrice: couponDiscount,
     couponCode: couponCode || "",
-    couponDiscount: couponDiscount || 0,
+    couponDiscount,
     totalPrice,
     orderNotes: orderNotes || "",
     status: initialStatus,
-    isPaid: paymentMethod === "COD" ? false : false,
+    isPaid: false,
     statusHistory: [
       {
         status: initialStatus,
-        note: paymentMethod === "COD" ? "Order placed (Cash on Delivery)" : "Order placed, awaiting payment",
+        note: paymentMethod === "COD"
+          ? "Order placed (Cash on Delivery)"
+          : "Order placed, awaiting payment",
         changedByName: req.user.name || "Customer",
         changedBy: req.user._id,
       },
@@ -87,6 +139,7 @@ export const addOrderItems = asyncHandler(async (req, res) => {
 
   res.status(201).json(order);
 });
+
 
 // ─── My Orders ───────────────────────────────────────────────────────────────
 // @route GET /api/orders/myorders
@@ -653,4 +706,42 @@ export const updateReturnRequest = asyncHandler(async (req, res) => {
 
   const updated = await returnReq.save();
   res.json(updated);
+});
+
+// ─── Cancel Order (Customer) ──────────────────────────────────────────────────
+// @route  PUT /api/orders/:id/cancel
+// @access Private (customer owns the order)
+export const cancelOrder = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id);
+
+  if (!order) {
+    res.status(404);
+    throw new Error("Order not found");
+  }
+
+  // Only the order owner can cancel
+  if (order.user.toString() !== req.user._id.toString()) {
+    res.status(403);
+    throw new Error("Not authorized to cancel this order");
+  }
+
+  const CANCELLABLE_STATUSES = ["Pending Payment", "Confirmed"];
+  if (!CANCELLABLE_STATUSES.includes(order.status)) {
+    res.status(400);
+    throw new Error(
+      `Orders with status "${order.status}" cannot be cancelled. Please contact us if you need help.`
+    );
+  }
+
+  order.status = "Cancelled";
+  order.statusHistory.push({
+    status: "Cancelled",
+    note: "Cancelled by customer",
+    changedByName: req.user.name || "Customer",
+    changedBy: req.user._id,
+    updatedAt: new Date(),
+  });
+
+  const cancelled = await order.save();
+  res.json({ message: "Order cancelled successfully", order: cancelled });
 });

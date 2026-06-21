@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 import toast from "react-hot-toast";
+import { Helmet } from "react-helmet-async";
 import { FiMail, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
 
 const Login = () => {
@@ -37,6 +38,10 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-brand-bg flex">
+      <Helmet>
+        <title>Sign In | RK Saree &amp; Fashion Hub</title>
+        <meta name="robots" content="noindex" />
+      </Helmet>
       {/* Left Panel */}
       <div className="hidden lg:flex w-1/2 bg-gradient-hero flex-col items-center justify-center p-12 relative overflow-hidden">
         <div className="absolute top-16 right-16 w-64 h-64 bg-primary-500/20 rounded-full blur-3xl" />
@@ -48,7 +53,7 @@ const Login = () => {
             Sign in to continue your fashion journey with exclusive deals and offers.
           </p>
           <div className="mt-10 grid grid-cols-2 gap-4 text-center">
-            {[["500+", "Products"], ["10K+", "Customers"], ["4.8★", "Rating"], ["7-Day", "Returns"]].map(([val, label]) => (
+            {[["Premium", "Sarees"], ["Free", "Delivery ₹2K+"], ["4.8★", "Rating"], ["7-Day", "Returns"]].map(([val, label]) => (
               <div key={label} className="bg-white/10 border border-white/15 rounded-2xl p-4">
                 <p className="font-outfit text-xl font-bold text-white">{val}</p>
                 <p className="text-gray-400 text-xs mt-1">{label}</p>

@@ -1,18 +1,24 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { FiTrash2, FiMinus, FiPlus, FiShoppingBag, FiArrowRight, FiTruck } from "react-icons/fi";
+import { calculateShipping, calculateTax, amountToFreeShipping, FREE_SHIPPING_THRESHOLD, formatPrice } from "../utils/pricing";
+import { Helmet } from "react-helmet-async";
 
 const Cart = () => {
   const navigate = useNavigate();
   const { cartItems, updateQty, removeFromCart, cartTotal, clearCart } = useCart();
 
-  const shippingPrice = cartTotal >= 2000 ? 0 : 150;
-  const taxPrice = Math.round(cartTotal * 0.05);
+  const shippingPrice = calculateShipping(cartTotal);
+  const taxPrice = calculateTax(cartTotal);
   const orderTotal = cartTotal + shippingPrice + taxPrice;
+  const remaining = amountToFreeShipping(cartTotal);
 
   if (cartItems.length === 0) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center bg-brand-bg">
+        <Helmet>
+          <title>Shopping Cart | RK Saree &amp; Fashion Hub</title>
+        </Helmet>
         <div className="text-center py-20">
           <div className="text-8xl mb-6">🛒</div>
           <h2 className="font-outfit text-3xl font-bold text-gray-900 mb-3">Your cart is empty</h2>
@@ -112,18 +118,18 @@ const Cart = () => {
               <h2 className="font-outfit text-xl font-bold text-gray-900 mb-6">Order Summary</h2>
 
               {/* Free shipping progress */}
-              {cartTotal < 2000 && (
+              {cartTotal < FREE_SHIPPING_THRESHOLD && (
                 <div className="bg-primary-50 rounded-xl p-4 mb-5 border border-primary-100">
                   <div className="flex items-center gap-2 mb-2">
                     <FiTruck className="w-4 h-4 text-primary-600" />
                     <p className="text-xs font-medium text-primary-700">
-                      Add ₹{(2000 - cartTotal).toLocaleString("en-IN")} more for FREE delivery!
+                      Add {formatPrice(remaining)} more for FREE delivery!
                     </p>
                   </div>
                   <div className="w-full h-1.5 bg-primary-200 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-primary-600 rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(100, (cartTotal / 2000) * 100)}%` }}
+                      style={{ width: `${Math.min(100, (cartTotal / FREE_SHIPPING_THRESHOLD) * 100)}%` }}
                     />
                   </div>
                 </div>
@@ -137,13 +143,10 @@ const Cart = () => {
                 <div className="flex justify-between text-sm text-gray-600">
                   <span>Shipping</span>
                   <span className={`font-medium ${shippingPrice === 0 ? "text-green-600" : "text-gray-900"}`}>
-                    {shippingPrice === 0 ? "FREE" : `₹${shippingPrice}`}
+                    {shippingPrice === 0 ? "FREE" : formatPrice(shippingPrice)}
                   </span>
                 </div>
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>GST (5%)</span>
-                  <span className="font-medium text-gray-900">₹{taxPrice.toLocaleString("en-IN")}</span>
-                </div>
+
                 <div className="border-t border-gray-100 pt-3 flex justify-between">
                   <span className="font-outfit font-bold text-gray-900">Total</span>
                   <span className="font-outfit font-black text-xl text-gray-900">₹{orderTotal.toLocaleString("en-IN")}</span>

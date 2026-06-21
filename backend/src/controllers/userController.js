@@ -354,6 +354,15 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
   }
 
   if (req.body.password) {
+    if (!req.body.currentPassword) {
+      res.status(400);
+      throw new Error("Current password is required to set a new password");
+    }
+    const isMatch = await user.matchPassword(req.body.currentPassword);
+    if (!isMatch) {
+      res.status(401);
+      throw new Error("Current password is incorrect");
+    }
     user.password = req.body.password;
   }
 
