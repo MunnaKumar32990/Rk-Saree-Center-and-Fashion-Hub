@@ -7,6 +7,7 @@ import {
   updateProduct,
   deleteProduct,
   createProductReview,
+  getSitemap,
 } from "../controllers/productController.js";
 import { protect, admin } from "../middlewares/authMiddleware.js";
 
@@ -17,6 +18,7 @@ router.route("/")
   .post(protect, admin, createProduct);
 
 router.get("/top", getTopProducts);
+router.get("/sitemap", getSitemap);
 
 router.route("/:id")
   .get(getProductById)

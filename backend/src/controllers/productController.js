@@ -5,7 +5,7 @@ import asyncHandler from "../utils/asyncHandler.js";
 // @route   GET /api/products
 // @access  Public
 export const getProducts = asyncHandler(async (req, res) => {
-  const { keyword, category, minPrice, maxPrice, rating, size, sort, featured } = req.query;
+  const { keyword, category, subcategory, color, minPrice, maxPrice, rating, size, sort, featured } = req.query;
   const page = Number(req.query.page) || 1;
   const limit = Number(req.query.limit) || 12;
   const skip = (page - 1) * limit;
@@ -22,6 +22,14 @@ export const getProducts = asyncHandler(async (req, res) => {
 
   if (category && category !== "All") {
     query.category = category;
+  }
+
+  if (subcategory) {
+    query.subcategory = subcategory;
+  }
+
+  if (color) {
+    query.colors = { $in: [color] };
   }
 
   if (minPrice || maxPrice) {
@@ -105,7 +113,7 @@ export const getProductById = asyncHandler(async (req, res) => {
 export const createProduct = asyncHandler(async (req, res) => {
   const {
     name, image, images, brand, category, subcategory,
-    description, price, discount, countInStock, sizes, isFeatured, tags,
+    description, price, discount, countInStock, sizes, colors, isFeatured, tags,
   } = req.body;
 
   const product = await Product.create({
@@ -120,6 +128,7 @@ export const createProduct = asyncHandler(async (req, res) => {
     discount: discount || 0,
     countInStock: countInStock || 0,
     sizes: sizes || [],
+    colors: colors || [],
     isFeatured: isFeatured || false,
     tags: tags || [],
   });
@@ -140,7 +149,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
   const fields = [
     "name", "image", "images", "brand", "category", "subcategory",
-    "description", "price", "discount", "countInStock", "sizes", "isFeatured", "tags",
+    "description", "price", "discount", "countInStock", "sizes", "colors", "isFeatured", "tags",
   ];
 
   fields.forEach((field) => {
@@ -204,3 +213,79 @@ export const createProductReview = asyncHandler(async (req, res) => {
   await product.save();
   res.status(201).json({ message: "Review added" });
 });
+
+// @desc    Get sitemap XML
+// @route   GET /sitemap.xml
+// @access  Public
+export const getSitemap = asyncHandler(async (req, res) => {
+  const products = await Product.find({}).select("_id category updatedAt");
+  const frontendUrl = process.env.FRONTEND_URL || "https://rksareefashionhub.com";
+
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${frontendUrl}/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>${frontendUrl}/login</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>${frontendUrl}/register</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>${frontendUrl}/contact</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>${frontendUrl}/shipping</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>${frontendUrl}/privacy</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>${frontendUrl}/terms</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>`;
+
+  // Categories
+  const categories = ["Men", "Women", "Kids"];
+  categories.forEach((cat) => {
+    xml += `
+  <url>
+    <loc>${frontendUrl}/category/${cat}</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>`;
+  });
+
+  // Products
+  products.forEach((p) => {
+    const lastmod = p.updatedAt ? p.updatedAt.toISOString().split("T")[0] : new Date().toISOString().split("T")[0];
+    xml += `
+  <url>
+    <loc>${frontendUrl}/product/${p._id}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>`;
+  });
+
+  xml += `
+</urlset>`;
+
+  res.header("Content-Type", "application/xml");
+  res.status(200).send(xml);
+});
+

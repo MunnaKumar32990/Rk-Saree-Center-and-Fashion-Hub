@@ -1,7 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiFilter, FiX, FiChevronDown } from "react-icons/fi";
 
 const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
+
+const COLORS = [
+  { name: "Red", hex: "#EF4444" },
+  { name: "Blue", hex: "#3B82F6" },
+  { name: "Green", hex: "#10B981" },
+  { name: "Yellow", hex: "#F59E0B" },
+  { name: "Pink", hex: "#EC4899" },
+  { name: "Black", hex: "#111827" },
+  { name: "White", hex: "#F3F4F6", border: true },
+  { name: "Gold", hex: "#D97706" },
+  { name: "Orange", hex: "#F97316" },
+  { name: "Purple", hex: "#8B5CF6" },
+  { name: "Maroon", hex: "#7F1D1D" },
+  { name: "Cream", hex: "#FFFDF5", border: true },
+];
 
 const CATEGORY_FILTERS = [
     {
@@ -28,15 +43,20 @@ const FilterSidebar = ({ filters, onChange }) => {
     const [openSections, setOpenSections] = useState({
         category: true,
         price: true,
+        color: true,
         size: true,
         rating: true,
     });
+
+    useEffect(() => {
+        setPriceMax(filters.maxPrice || 10000);
+    }, [filters.maxPrice]);
 
     const toggleSection = (section) =>
         setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
 
     const handleCategory = (cat) =>
-        onChange({ ...filters, category: cat === "All" ? "" : cat });
+        onChange({ ...filters, category: cat === "All" ? "" : cat, subcategory: "" });
 
     const handleSize = (size) =>
         onChange({ ...filters, size: filters.size === size ? "" : size });
@@ -49,10 +69,10 @@ const FilterSidebar = ({ filters, onChange }) => {
 
     const clearAll = () => {
         setPriceMax(10000);
-        onChange({ category: "", size: "", rating: "", minPrice: "", maxPrice: "" });
+        onChange({ category: "", subcategory: "", size: "", color: "", rating: "", minPrice: "", maxPrice: "" });
     };
 
-    const hasFilters = filters.category || filters.size || filters.rating || filters.maxPrice;
+    const hasFilters = filters.category || filters.subcategory || filters.size || filters.color || filters.rating || filters.maxPrice;
 
     return (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-card overflow-hidden">
@@ -99,7 +119,7 @@ const FilterSidebar = ({ filters, onChange }) => {
                                             {cat.subcategories.map((sub) => (
                                                 <button
                                                     key={sub}
-                                                    onClick={() => onChange({ ...filters, category: cat.name, subcategory: sub })}
+                                                    onClick={() => onChange({ ...filters, category: cat.name, subcategory: filters.subcategory === sub ? "" : sub })}
                                                     className={`w-full text-left px-2 py-1.5 rounded-lg text-xs transition-all ${filters.subcategory === sub ? "bg-primary-100 text-primary-700 font-semibold" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}
                                                 >
                                                     {sub}
@@ -140,6 +160,42 @@ const FilterSidebar = ({ filters, onChange }) => {
                                 <span>₹0</span>
                                 <span>₹20,000</span>
                             </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Colors */}
+                <div className="p-5">
+                    <button onClick={() => toggleSection("color")} className="flex items-center justify-between w-full mb-3">
+                        <span className="text-sm font-semibold text-gray-800">Colors</span>
+                        <FiChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${openSections.color ? "" : "-rotate-90"}`} />
+                    </button>
+                    {openSections.color && (
+                        <div className="grid grid-cols-6 gap-2">
+                            {COLORS.map((c) => {
+                                const isSelected = filters.color === c.name;
+                                return (
+                                    <button
+                                        key={c.name}
+                                        onClick={() => onChange({ ...filters, color: isSelected ? "" : c.name })}
+                                        title={c.name}
+                                        className={`relative w-7 h-7 rounded-full focus:outline-none transition-all hover:scale-110 flex items-center justify-center ${
+                                            c.border ? "border border-gray-200" : ""
+                                        }`}
+                                        style={{ backgroundColor: c.hex }}
+                                    >
+                                        {isSelected && (
+                                            <span
+                                                className={`text-[10px] font-bold ${
+                                                    c.name === "White" || c.name === "Cream" ? "text-gray-900" : "text-white"
+                                                }`}
+                                            >
+                                                ✓
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })}
                         </div>
                     )}
                 </div>

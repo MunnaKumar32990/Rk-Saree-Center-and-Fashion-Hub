@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import api from "../services/api";
 import ProductCard from "../components/ProductCard";
@@ -17,34 +17,34 @@ const SORT_OPTIONS = [
 
 const Category = () => {
   const { categoryName } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+
   const keyword = searchParams.get("keyword") || "";
+  const subcategory = searchParams.get("sub") || "";
+  const size = searchParams.get("size") || "";
+  const color = searchParams.get("color") || "";
+  const rating = searchParams.get("rating") || "";
+  const minPrice = searchParams.get("minPrice") || "";
+  const maxPrice = searchParams.get("maxPrice") || "";
+  const page = Number(searchParams.get("page")) || 1;
+  const sort = searchParams.get("sort") || "newest";
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [sort, setSort] = useState("newest");
   const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({
+
+  const filters = {
     category: categoryName || "",
-    size: "",
-    rating: "",
-    minPrice: "",
-    maxPrice: "",
-  });
-
-  // Reset on route change
-  useEffect(() => {
-    setFilters((prev) => ({ ...prev, category: categoryName || "" }));
-    setPage(1);
-  }, [categoryName]);
-
-  // Reset page when keyword changes
-  useEffect(() => {
-    setPage(1);
-  }, [keyword]);
+    subcategory,
+    size,
+    color,
+    rating,
+    minPrice,
+    maxPrice,
+  };
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -52,11 +52,13 @@ const Category = () => {
       try {
         const params = new URLSearchParams({ page, limit: 12, sort });
         if (keyword) params.set("keyword", keyword);
-        if (filters.category) params.set("category", filters.category);
-        if (filters.size) params.set("size", filters.size);
-        if (filters.rating) params.set("rating", filters.rating);
-        if (filters.maxPrice) params.set("maxPrice", filters.maxPrice);
-        if (filters.minPrice) params.set("minPrice", filters.minPrice);
+        if (categoryName) params.set("category", categoryName);
+        if (subcategory) params.set("subcategory", subcategory);
+        if (color) params.set("color", color);
+        if (size) params.set("size", size);
+        if (rating) params.set("rating", rating);
+        if (maxPrice) params.set("maxPrice", maxPrice);
+        if (minPrice) params.set("minPrice", minPrice);
 
         const { data } = await api.get(`/products?${params}`);
         setProducts(data.products || data);
@@ -69,12 +71,63 @@ const Category = () => {
       }
     };
     fetchProducts();
-  }, [filters, sort, page, keyword]);
+  }, [categoryName, keyword, subcategory, size, color, rating, minPrice, maxPrice, page, sort]);
 
   const handleFilterChange = (newFilters) => {
-    setFilters(newFilters);
-    setPage(1);
+    const targetCategory = newFilters.category;
+    const currentCategory = categoryName || "";
+
+    const params = new URLSearchParams();
+    if (newFilters.subcategory) params.set("sub", newFilters.subcategory);
+    if (newFilters.size) params.set("size", newFilters.size);
+    if (newFilters.color) params.set("color", newFilters.color);
+    if (newFilters.rating) params.set("rating", newFilters.rating);
+    if (newFilters.minPrice) params.set("minPrice", newFilters.minPrice);
+    if (newFilters.maxPrice) params.set("maxPrice", newFilters.maxPrice);
+    if (keyword) params.set("keyword", keyword);
+    params.set("page", "1");
+    if (sort !== "newest") params.set("sort", sort);
+
+    const queryStr = params.toString() ? `?${params.toString()}` : "";
+    if (targetCategory !== currentCategory) {
+      if (targetCategory) {
+        navigate(`/category/${targetCategory}${queryStr}`);
+      } else {
+        navigate(`/search${queryStr}`);
+      }
+    } else {
+      setSearchParams(params);
+    }
   };
+
+  const handleSortChange = (newSort) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("sort", newSort);
+    params.set("page", "1");
+    setSearchParams(params);
+  };
+
+  const handlePageChange = (newPage) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("page", String(newPage));
+    setSearchParams(params);
+  };
+
+  const removeFilter = (key) => {
+    const params = new URLSearchParams(searchParams);
+    params.delete(key);
+    params.set("page", "1");
+    setSearchParams(params);
+  };
+
+  const clearAllFilters = () => {
+    const params = new URLSearchParams();
+    if (keyword) params.set("keyword", keyword);
+    params.set("page", "1");
+    setSearchParams(params);
+  };
+
+  const hasAnyFilter = subcategory || size || color || rating || (maxPrice && maxPrice !== "10000");
 
   // Dynamic page title
   const pageTitle = keyword
@@ -143,7 +196,7 @@ const Category = () => {
                 <label className="text-sm text-gray-600 hidden sm:block">Sort by:</label>
                 <select
                   value={sort}
-                  onChange={(e) => { setSort(e.target.value); setPage(1); }}
+                  onChange={(e) => handleSortChange(e.target.value)}
                   className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white font-medium"
                 >
                   {SORT_OPTIONS.map((opt) => (
@@ -160,6 +213,59 @@ const Category = () => {
               </div>
             )}
 
+            {/* Active Filter Chips */}
+            {hasAnyFilter && (
+              <div className="flex flex-wrap gap-2 mb-6 items-center">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Active Filters:</span>
+                {subcategory && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-primary-50 text-primary-700 text-xs font-semibold rounded-full border border-primary-100">
+                    Subcategory: {subcategory}
+                    <button onClick={() => removeFilter("sub")} className="hover:text-primary-900 focus:outline-none ml-1 text-sm font-bold">
+                      &times;
+                    </button>
+                  </span>
+                )}
+                {size && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-primary-50 text-primary-700 text-xs font-semibold rounded-full border border-primary-100">
+                    Size: {size}
+                    <button onClick={() => removeFilter("size")} className="hover:text-primary-900 focus:outline-none ml-1 text-sm font-bold">
+                      &times;
+                    </button>
+                  </span>
+                )}
+                {color && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-primary-50 text-primary-700 text-xs font-semibold rounded-full border border-primary-100">
+                    Color: {color}
+                    <button onClick={() => removeFilter("color")} className="hover:text-primary-900 focus:outline-none ml-1 text-sm font-bold">
+                      &times;
+                    </button>
+                  </span>
+                )}
+                {rating && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-primary-50 text-primary-700 text-xs font-semibold rounded-full border border-primary-100">
+                    Rating: {rating}★ & up
+                    <button onClick={() => removeFilter("rating")} className="hover:text-primary-900 focus:outline-none ml-1 text-sm font-bold">
+                      &times;
+                    </button>
+                  </span>
+                )}
+                {maxPrice && maxPrice !== "10000" && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-primary-50 text-primary-700 text-xs font-semibold rounded-full border border-primary-100">
+                    Max Price: ₹{Number(maxPrice).toLocaleString("en-IN")}
+                    <button onClick={() => removeFilter("maxPrice")} className="hover:text-primary-900 focus:outline-none ml-1 text-sm font-bold">
+                      &times;
+                    </button>
+                  </span>
+                )}
+                <button
+                  onClick={clearAllFilters}
+                  className="text-xs text-red-500 hover:text-red-700 font-semibold transition-colors"
+                >
+                  Clear All
+                </button>
+              </div>
+            )}
+
             {/* Products Grid */}
             {loading ? (
               <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -172,7 +278,7 @@ const Category = () => {
                     <ProductCard key={p._id} product={p} delay={i * 50} />
                   ))}
                 </div>
-                <Pagination page={page} pages={pages} onPageChange={setPage} />
+                <Pagination page={page} pages={pages} onPageChange={handlePageChange} />
               </>
             ) : (
               <div className="text-center py-24">

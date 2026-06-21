@@ -126,28 +126,81 @@ const AppLayout = () => (
   </div>
 );
 
-const App = () => (
-  <Router>
-    <ScrollToTop />
-    <AuthProvider>
-      <CartProvider>
-        <WishlistProvider>
-          <AppLayout />
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 3000,
-              style: {
-                borderRadius: "12px",
-                fontFamily: "Inter, sans-serif",
-                fontSize: "14px",
-              },
-            }}
-          />
-        </WishlistProvider>
-      </CartProvider>
-    </AuthProvider>
-  </Router>
-);
+const App = () => {
+  useEffect(() => {
+    const gaId = import.meta.env.VITE_GOOGLE_ANALYTICS_ID;
+    const pixelId = import.meta.env.VITE_META_PIXEL_ID;
+
+    // Google Analytics
+    if (gaId && !document.getElementById("google-analytics-script")) {
+      const gaScript1 = document.createElement("script");
+      gaScript1.async = true;
+      gaScript1.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`;
+      gaScript1.id = "google-analytics-script";
+      document.head.appendChild(gaScript1);
+
+      const gaScript2 = document.createElement("script");
+      gaScript2.id = "google-analytics-init";
+      gaScript2.innerHTML = `
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', '${gaId}');
+      `;
+      document.head.appendChild(gaScript2);
+    }
+
+    // Meta Pixel
+    if (pixelId && !document.getElementById("meta-pixel-script")) {
+      const pixelScript = document.createElement("script");
+      pixelScript.id = "meta-pixel-script";
+      pixelScript.innerHTML = `
+        !function(f,b,e,v,n,t,s)
+        {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+        n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+        if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+        n.queue=[];t=b.createElement(e);t.async=!0;
+        t.src=v;s=b.getElementsByTagName(e)[0];
+        s.parentNode.insertBefore(t,s)}(window, document,'script',
+        'https://connect.facebook.net/en_US/fbevents.js');
+        fbq('init', '${pixelId}');
+        fbq('track', 'PageView');
+      `;
+      document.head.appendChild(pixelScript);
+
+      const pixelNoscript = document.createElement("noscript");
+      pixelNoscript.id = "meta-pixel-noscript";
+      pixelNoscript.innerHTML = `
+        <img height="1" width="1" style="display:none"
+        src="https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1" />
+      `;
+      document.body.appendChild(pixelNoscript);
+    }
+  }, []);
+
+  return (
+    <Router>
+      <ScrollToTop />
+      <AuthProvider>
+        <CartProvider>
+          <WishlistProvider>
+            <AppLayout />
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                duration: 3000,
+                style: {
+                  borderRadius: "12px",
+                  fontFamily: "Inter, sans-serif",
+                  fontSize: "14px",
+                },
+              }}
+            />
+          </WishlistProvider>
+        </CartProvider>
+      </AuthProvider>
+    </Router>
+  );
+};
 
 export default App;

@@ -267,6 +267,10 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   if (status === "Delivered") {
     order.isDelivered = true;
     order.deliveredAt = Date.now();
+    if (order.paymentMethod === "COD") {
+      order.isPaid = true;
+      order.paidAt = Date.now();
+    }
   }
   if (status === "Paid") {
     order.isPaid = true;
@@ -305,6 +309,10 @@ export const markOrderDelivered = asyncHandler(async (req, res) => {
   order.isDelivered = true;
   order.deliveredAt = Date.now();
   order.status = "Delivered";
+  if (order.paymentMethod === "COD") {
+    order.isPaid = true;
+    order.paidAt = Date.now();
+  }
   order.statusHistory.push({
     status: "Delivered",
     note: "Order delivered to customer",
@@ -335,19 +343,53 @@ export const bulkUpdateStatus = asyncHandler(async (req, res) => {
     updatedAt: new Date(),
   };
 
-  const update = {
-    $set: { status },
-    $push: { statusHistory: historyEntry },
-  };
+  let modifiedCount = 0;
 
   if (status === "Delivered") {
-    update.$set.isDelivered = true;
-    update.$set.deliveredAt = new Date();
+    // Update COD orders: mark delivered and paid
+    const codResult = await Order.updateMany(
+      { _id: { $in: orderIds }, paymentMethod: "COD" },
+      {
+        $set: {
+          status,
+          isDelivered: true,
+          deliveredAt: new Date(),
+          isPaid: true,
+          paidAt: new Date(),
+        },
+        $push: { statusHistory: historyEntry },
+      }
+    );
+
+    // Update non-COD orders: mark delivered
+    const nonCodResult = await Order.updateMany(
+      { _id: { $in: orderIds }, paymentMethod: { $ne: "COD" } },
+      {
+        $set: {
+          status,
+          isDelivered: true,
+          deliveredAt: new Date(),
+        },
+        $push: { statusHistory: historyEntry },
+      }
+    );
+
+    modifiedCount = codResult.modifiedCount + nonCodResult.modifiedCount;
+  } else {
+    // Other status updates
+    const update = {
+      $set: { status },
+      $push: { statusHistory: historyEntry },
+    };
+    if (status === "Paid") {
+      update.$set.isPaid = true;
+      update.$set.paidAt = new Date();
+    }
+    const result = await Order.updateMany({ _id: { $in: orderIds } }, update);
+    modifiedCount = result.modifiedCount;
   }
 
-  const result = await Order.updateMany({ _id: { $in: orderIds } }, update);
-
-  res.json({ message: `${result.modifiedCount} orders updated to ${status}` });
+  res.json({ message: `${modifiedCount} orders updated to ${status}` });
 });
 
 // ─── Export Orders CSV (Admin) ────────────────────────────────────────────────
