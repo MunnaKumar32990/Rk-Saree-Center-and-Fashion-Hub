@@ -1,74 +1,148 @@
 # 🛍️ RK Saree & Fashion Hub
 
-A full-stack e-commerce platform for saree and fashion products with advanced features including admin dashboard, payment integration, order management, and more.
+A **production-grade, full-stack e-commerce platform** built for RK Saree Center — a family-owned clothing showroom. Designed to compete with modern fashion e-commerce stores with a premium UI, robust admin panel, and real business features.
+
+🌐 **Live Site:** [https://rk-saree-center-and-fashion-hub.vercel.app](https://rk-saree-center-and-fashion-hub.vercel.app)
+
+---
 
 ## 📋 Table of Contents
 
+- [Project Status](#-project-status)
 - [Features](#-features)
 - [Tech Stack](#-tech-stack)
 - [Project Structure](#-project-structure)
-- [Prerequisites](#-prerequisites)
-- [Installation](#-installation)
+- [Local Development Setup](#-local-development-setup)
 - [Environment Variables](#-environment-variables)
-- [Running the Application](#-running-the-application)
 - [API Endpoints](#-api-endpoints)
-- [Admin Features](#-admin-features)
-- [Security Features](#-security-features)
-- [Contributing](#-contributing)
-- [License](#-license)
+- [Deployment](#-deployment)
+- [Security](#-security)
+- [Author](#-author)
+
+---
+
+## ✅ Project Status
+
+All three planned phases of improvements are **complete**. Below is a summary:
+
+### Phase 1 — Critical Fixes ✅
+- Fixed HTML entry point with correct title, favicon, and meta tags
+- Per-page SEO using `react-helmet-async` (Home, Category, ProductDetails, Login, Cart)
+- Fixed broken search — keyword from URL params
+- Centralized shipping/pricing logic in `utils/pricing.js`
+- Server-side order price validation (security hardening)
+- Require current password for profile password change
+- Color swatch selector on Product Detail page
+- Fixed Footer social links & newsletter → WhatsApp CTA
+- Created real Privacy Policy + Terms of Service pages
+- Replaced hardcoded fake testimonials with real dynamic stats
+- Removed public `/check-status` debug endpoint
+- Added `robots.txt` to public folder
+
+### Phase 2 — Business Features ✅
+- **Cash on Delivery (COD)** — payment method selector + backend COD order handling
+- **Lazy loading** — `React.lazy()` + `Suspense` for all pages & admin code split
+- **URL-synced filters** — subcategory and color filters stored in URL params
+- **Color filter swatches** in sidebar (premium circular color picker)
+- **WhatsApp floating button** — animated, pulsing tooltip, hidden on admin pages
+- **Size guide modal** — clothing + saree tabs, measurement tables, WhatsApp CTA
+- **Customer order cancellation** — backend + frontend confirm dialog
+- **Notify Me** — email capture + WhatsApp fallback for out-of-stock products
+- **Cloudinary image optimization** — applied to ProductCard and ProductDetails
+- **Image alt texts** — `productAlt()` utility for SEO-friendly image descriptions
+- **Invoice PDF download** — jsPDF-powered invoice generation in OrderDetails
+- **Recently Viewed products** — localStorage persistence with a reusable hook
+- **PWA Manifest** — `manifest.json` linked in `index.html`
+- **Vite manual chunking** — `vendor-react`, `vendor-ui`, `vendor-pdf` code splits
+
+### Phase 3 — Conversion & Growth ✅
+- **Breadcrumb JSON-LD + Product Schema** — structured data for Google rich results
+- **Out-of-Stock overlay** on product cards
+- **Subcategory + Color active filter chips** — removable chips above product grid
+- **Share product button** — Web Share API with WhatsApp fallback
+- **Admin: Colors/Sizes fields** in Add/Edit product form (properly saved to database)
+- **Admin: COD auto-paid** — marking a COD order as Delivered automatically marks it Paid
+- **Google Analytics + Meta Pixel** — dynamic injection via environment variables
+- **Sitemap.xml** — dynamically generated XML sitemap for all products and categories
+- **Custom 404 page** — branded design with WhatsApp help CTA and quick links
+
+### Deployment ✅
+- Backend deployed on **Render**
+- Frontend deployed on **Vercel**
+- SPA routing configured via `vercel.json`
+- CORS whitelist updated with Vercel production URL
+- Linux case-sensitivity fix (`User.js` model rename)
+
+---
 
 ## ✨ Features
 
-### Customer Features
-- 🔐 **User Authentication** - Register, login, email verification, 2FA, password reset
-- 🛒 **Shopping Cart** - Add, update, remove items with real-time updates
-- ❤️ **Wishlist** - Save favorite products for later
-- 🔍 **Product Search & Filter** - Search by name, filter by category, price range
-- 📦 **Order Management** - Place orders, track status, view order history
-- 💳 **Payment Integration** - Razorpay payment gateway integration
-- 📧 **Email Notifications** - Order confirmations, shipping updates
-- 👤 **User Profile** - Manage personal information and addresses
-- 🎟️ **Coupon System** - Apply discount coupons at checkout
-- 📱 **Responsive Design** - Mobile-friendly interface
+### 🧑‍💼 Customer Features
+| Feature | Details |
+|---|---|
+| 🔐 Authentication | Register, login, email verification, 2FA, forgot/reset password |
+| 🛒 Shopping Cart | Add/update/remove items, real-time price updates, persistent across sessions |
+| ❤️ Wishlist | Save products for later, quick add-to-cart |
+| 🔍 Search & Filters | Keyword search, category, subcategory, color, size, price range, rating — all URL-synced |
+| 📦 Order Tracking | Place orders, view status timeline, download invoice PDF |
+| 💵 COD Support | Choose Cash on Delivery at checkout |
+| 💳 Razorpay Payments | Secure online payment gateway integration |
+| 🎟️ Coupon Codes | Apply discount codes at checkout |
+| 🔔 Notify Me | Capture email for restocked products |
+| 🕐 Recently Viewed | Track and display last-viewed products |
+| ↩️ Order Cancellation | Cancel eligible orders from order history |
+| 📄 Invoice Download | Generate and download order invoice as PDF |
+| 📐 Size Guide | Pop-up guide with clothing and saree measurement tables |
+| 📲 WhatsApp | Floating CTA button and fallback for all actions |
+| 📢 Share Product | Native share API with WhatsApp fallback |
+| 🗺️ Location Widget | Detect delivery location via GPS |
 
-### Admin Features
-- 📊 **Dashboard** - Sales analytics, revenue charts, order statistics
-- 📦 **Product Management** - Add, edit, delete products with image uploads
-- 🛍️ **Order Management** - View, update order status, process returns
-- 👥 **User Management** - View and manage customer accounts
-- 🎟️ **Coupon Management** - Create and manage discount coupons
-- 📢 **Announcements** - Display promotional banners
-- 📈 **Analytics** - Sales reports and performance metrics
+### 🛠️ Admin Features
+| Feature | Details |
+|---|---|
+| 📊 Dashboard | Revenue, orders, users, monthly sales chart |
+| 📦 Product Management | Add/edit/delete products with images, sizes, colors, discounts |
+| 🛍️ Order Management | Update status, bulk update, tracking info, auto-mark COD as paid |
+| 👥 User Management | View customer accounts, promote to admin |
+| 🎟️ Coupon Management | Create and manage discount coupons |
+| 📢 Announcements | Promotional banners with scheduling |
+| ↩️ Returns Management | Handle return requests and refunds |
+| 📤 Export CSV | Download orders as CSV for accounting |
+
+---
 
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **React 19** - UI library
-- **Vite** - Build tool and dev server
-- **React Router DOM** - Client-side routing
-- **Tailwind CSS** - Utility-first CSS framework
-- **Framer Motion** - Animation library
-- **Axios** - HTTP client
-- **React Hot Toast** - Toast notifications
-- **Recharts** - Data visualization
-- **React Icons** - Icon library
-- **jsPDF** - PDF generation
+| Technology | Purpose |
+|---|---|
+| React 19 + Vite | UI library & build tool |
+| React Router DOM | Client-side routing |
+| Tailwind CSS | Utility-first styling |
+| Axios | HTTP client for API calls |
+| react-helmet-async | Per-page SEO meta tags |
+| React Hot Toast | Toast notifications |
+| Recharts | Admin analytics charts |
+| React Icons | Icon library (Feather icons) |
+| jsPDF | Invoice PDF generation |
+| Cloudinary | CDN image delivery & optimization |
 
 ### Backend
-- **Node.js** - Runtime environment
-- **Express.js** - Web framework
-- **MongoDB** - NoSQL database
-- **Mongoose** - MongoDB ODM
-- **JWT** - Authentication
-- **Bcrypt** - Password hashing
-- **Nodemailer** - Email service
-- **Razorpay** - Payment gateway
-- **Cloudinary** - Image storage
-- **Multer** - File upload handling
-- **Helmet** - Security headers
-- **Express Rate Limit** - API rate limiting
-- **Morgan** - HTTP request logger
-- **CORS** - Cross-origin resource sharing
+| Technology | Purpose |
+|---|---|
+| Node.js + Express 5 | Server & API framework |
+| MongoDB + Mongoose | Database & ODM |
+| JWT | Authentication tokens |
+| Bcryptjs | Password hashing |
+| Nodemailer | Transactional emails |
+| Razorpay | Payment gateway |
+| Cloudinary + Multer | Image upload & storage |
+| Helmet | Security headers |
+| express-rate-limit | Brute-force protection |
+| Morgan | HTTP request logging |
+| CORS | Cross-origin request handling |
+
+---
 
 ## 📁 Project Structure
 
@@ -76,90 +150,85 @@ A full-stack e-commerce platform for saree and fashion products with advanced fe
 rk-saree-fashion-hub/
 ├── backend/
 │   ├── src/
-│   │   ├── config/          # Database and service configurations
-│   │   ├── controllers/     # Request handlers
-│   │   ├── middlewares/     # Custom middleware (auth, error handling)
-│   │   ├── models/          # Mongoose schemas
-│   │   │   ├── user.js
+│   │   ├── config/              # DB connection, Cloudinary config
+│   │   ├── controllers/         # Route handlers
+│   │   │   ├── userController.js
+│   │   │   ├── productController.js  # includes getSitemap
+│   │   │   ├── orderController.js    # COD auto-paid logic
+│   │   │   ├── couponController.js
+│   │   │   ├── announcementController.js
+│   │   │   └── paymentController.js
+│   │   ├── middlewares/         # Auth, error handling
+│   │   ├── models/
+│   │   │   ├── User.js
 │   │   │   ├── Product.js
 │   │   │   ├── Order.js
 │   │   │   ├── Coupon.js
 │   │   │   ├── Announcement.js
 │   │   │   └── ReturnRequest.js
-│   │   ├── routes/          # API routes
-│   │   │   ├── userRoutes.js
-│   │   │   ├── productRoutes.js
-│   │   │   ├── orderRoutes.js
-│   │   │   ├── contactRoutes.js
-│   │   │   ├── uploadRoutes.js
-│   │   │   ├── paymentRoutes.js
-│   │   │   ├── couponRoutes.js
-│   │   │   └── announcementRoutes.js
-│   │   ├── utils/           # Helper functions
-│   │   └── server.js        # Entry point
+│   │   ├── routes/
+│   │   └── utils/
+│   │       ├── asyncHandler.js
+│   │       ├── coupons.js
+│   │       └── sendEmail.js
 │   ├── .env.example
-│   ├── package.json
-│   └── verifyExistingUsers.js
+│   └── package.json
 │
 └── frontend/
     ├── public/
+    │   ├── robots.txt
+    │   └── manifest.json
     ├── src/
-    │   ├── admin/           # Admin panel components
-    │   │   ├── AdminDashboard.jsx
-    │   │   ├── AdminProduct.jsx
-    │   │   ├── AdminAddProduct.jsx
-    │   │   ├── AdminEditProduct.jsx
-    │   │   ├── AdminOrders.jsx
-    │   │   ├── AdminOrderDetails.jsx
-    │   │   ├── AdminUsers.jsx
-    │   │   ├── AdminCoupons.jsx
-    │   │   └── AdminAnnouncements.jsx
-    │   ├── assets/          # Images, fonts, static files
-    │   ├── components/      # Reusable components
-    │   ├── context/         # React Context (Auth, Cart, Wishlist)
-    │   ├── hooks/           # Custom React hooks
-    │   ├── pages/           # Page components
+    │   ├── admin/               # Admin panel pages
+    │   ├── components/          # Reusable UI components
+    │   │   ├── Header.jsx
+    │   │   ├── Footer.jsx
+    │   │   ├── FilterSidebar.jsx      # Color + subcategory filters
+    │   │   ├── WhatsAppButton.jsx
+    │   │   ├── SizeGuideModal.jsx
+    │   │   ├── RecentlyViewed.jsx
+    │   │   └── AnnouncementBanner.jsx
+    │   ├── context/             # Auth, Cart, Wishlist context
+    │   ├── hooks/               # useDebounce, useRecentlyViewed
+    │   ├── pages/               # All page components
     │   │   ├── Home.jsx
-    │   │   ├── Category.jsx
+    │   │   ├── Category.jsx           # URL-synced filters
     │   │   ├── ProductDetails.jsx
     │   │   ├── Cart.jsx
-    │   │   ├── Checkout.jsx
-    │   │   ├── Login.jsx
-    │   │   ├── Register.jsx
-    │   │   ├── Profile.jsx
-    │   │   ├── MyOrders.jsx
-    │   │   ├── OrderDetails.jsx
-    │   │   ├── Wishlist.jsx
-    │   │   └── ContactUs.jsx
-    │   ├── services/        # API service functions
-    │   ├── App.jsx
+    │   │   ├── NotFound.jsx           # Custom 404
+    │   │   ├── PrivacyPolicy.jsx
+    │   │   └── TermsOfService.jsx
+    │   ├── services/
+    │   │   └── api.js
+    │   ├── utils/
+    │   │   ├── pricing.js             # Centralized shipping logic
+    │   │   └── cloudinary.js          # Image optimization helpers
+    │   ├── App.jsx                    # GA + Meta Pixel injection
     │   └── main.jsx
+    ├── vercel.json                    # SPA routing rewrites
     ├── .env.example
-    ├── package.json
-    ├── tailwind.config.js
-    └── vite.config.js
+    └── vite.config.js                 # Manual chunk splitting
 ```
 
-## 📋 Prerequisites
+---
 
-Before you begin, ensure you have the following installed:
-- **Node.js** (v16 or higher)
-- **npm** or **yarn**
-- **MongoDB** (local or MongoDB Atlas account)
-- **Git**
+## 🏃 Local Development Setup
 
-## 🚀 Installation
+### Prerequisites
+- **Node.js** v18+
+- **npm**
+- **MongoDB Atlas** account (or local MongoDB)
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/rk-saree-fashion-hub.git
-cd rk-saree-fashion-hub
+git clone https://github.com/MunnaKumar32990/Rk-Saree-Center-and-Fashion-Hub.git
+cd Rk-Saree-Center-and-Fashion-Hub
 ```
 
 ### 2. Install Backend Dependencies
 ```bash
 cd backend
-npm install
+npm install --legacy-peer-deps
 ```
 
 ### 3. Install Frontend Dependencies
@@ -168,232 +237,147 @@ cd ../frontend
 npm install
 ```
 
+### 4. Configure Environment Variables
+```bash
+# Backend
+cp backend/.env.example backend/.env
+# Edit backend/.env with your credentials
+
+# Frontend
+cp frontend/.env.example frontend/.env
+# Edit frontend/.env with your API URL
+```
+
+### 5. Run Both Servers
+```bash
+# Terminal 1 — Backend (http://localhost:5000)
+cd backend && npm run dev
+
+# Terminal 2 — Frontend (http://localhost:5173)
+cd frontend && npm run dev
+```
+
+---
+
 ## 🔐 Environment Variables
 
-### Backend (.env)
-
-Create a `.env` file in the `backend` directory:
-
+### Backend (`backend/.env`)
 ```env
-# Server Configuration
 NODE_ENV=development
 PORT=5000
 
-# Database
-MONGO_URI=mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/rk-saree-db?retryWrites=true&w=majority
+# MongoDB Atlas
+MONGO_URI=mongodb+srv://<user>:<pass>@cluster.mongodb.net/rk-saree-db
 
-# JWT Secret (generate a strong random string)
-JWT_SECRET=your_super_secret_jwt_key_here_min_32_chars
+# JWT
+JWT_SECRET=your_super_secret_jwt_key_min_32_chars
 
-# Razorpay (Payment Gateway)
+# Razorpay
 RAZORPAY_KEY_ID=rzp_test_XXXXXXXXXXXXXXXX
-RAZORPAY_SECRET=your_razorpay_secret_key_here
+RAZORPAY_SECRET=your_razorpay_secret
 
-# Cloudinary (Image Upload)
+# Cloudinary
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
 
-# Email Configuration (Gmail)
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
+# Email (Gmail with App Password)
+EMAIL_SERVICE=gmail
 EMAIL_USER=your_email@gmail.com
 EMAIL_PASS=your_app_password
-ADMIN_RECEIVER_EMAIL=admin@example.com
 
-# Frontend URL (for CORS)
-FRONTEND_URL=http://localhost:5173
+# CORS — your deployed frontend URL
+FRONTEND_URL=https://rk-saree-center-and-fashion-hub.vercel.app
 ```
 
-### Frontend (.env)
-
-Create a `.env` file in the `frontend` directory:
-
+### Frontend (`frontend/.env`)
 ```env
 VITE_API_URL=http://localhost:5000/api
-VITE_RAZORPAY_KEY_ID=rzp_test_XXXXXXXXXXXXXXXX
+
+# Optional: Analytics
+VITE_GOOGLE_ANALYTICS_ID=G-XXXXXXXXXX
+VITE_META_PIXEL_ID=XXXXXXXXXXXXXXXXX
 ```
 
-### Getting API Keys
-
-1. **MongoDB Atlas**: [https://www.mongodb.com/cloud/atlas](https://www.mongodb.com/cloud/atlas)
-2. **Razorpay**: [https://dashboard.razorpay.com/app/keys](https://dashboard.razorpay.com/app/keys)
-3. **Cloudinary**: [https://cloudinary.com/console](https://cloudinary.com/console)
-4. **Gmail App Password**: [https://myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
-
-## 🏃 Running the Application
-
-### Development Mode
-
-#### Start Backend Server
-```bash
-cd backend
-npm run dev
-```
-Server runs on: `http://localhost:5000`
-
-#### Start Frontend Development Server
-```bash
-cd frontend
-npm run dev
-```
-Frontend runs on: `http://localhost:5173`
-
-### Production Mode
-
-#### Build Frontend
-```bash
-cd frontend
-npm run build
-```
-
-#### Start Backend in Production
-```bash
-cd backend
-npm start
-```
+---
 
 ## 📡 API Endpoints
 
 ### Authentication
-- `POST /api/users/register` - Register new user
-- `POST /api/users/login` - User login
-- `GET /api/users/verify-email/:token` - Verify email
-- `POST /api/users/forgot-password` - Request password reset
-- `POST /api/users/reset-password/:token` - Reset password
-- `POST /api/users/2fa/enable` - Enable 2FA
-- `POST /api/users/2fa/verify` - Verify 2FA code
-
-### User Profile
-- `GET /api/users/profile` - Get user profile
-- `PUT /api/users/profile` - Update user profile
-- `PUT /api/users/password` - Change password
+| Method | Route | Description |
+|---|---|---|
+| POST | `/api/users/register` | Register new user |
+| POST | `/api/users/login` | User login |
+| GET | `/api/users/verify-email/:token` | Verify email |
+| POST | `/api/users/forgot-password` | Request password reset |
+| POST | `/api/users/reset-password/:token` | Reset password |
 
 ### Products
-- `GET /api/products` - Get all products (with filters)
-- `GET /api/products/:id` - Get single product
-- `POST /api/products` - Create product (Admin)
-- `PUT /api/products/:id` - Update product (Admin)
-- `DELETE /api/products/:id` - Delete product (Admin)
-- `POST /api/products/:id/reviews` - Add product review
+| Method | Route | Description |
+|---|---|---|
+| GET | `/api/products` | Get products (keyword, category, subcategory, color, size, price, rating, sort, page) |
+| GET | `/api/products/top` | Get top-rated products |
+| GET | `/api/products/:id` | Get single product |
+| POST | `/api/products` | Create product (Admin) |
+| PUT | `/api/products/:id` | Update product (Admin) |
+| DELETE | `/api/products/:id` | Delete product (Admin) |
+| POST | `/api/products/:id/reviews` | Add review (Auth) |
+| GET | `/sitemap.xml` | Dynamic XML sitemap |
 
 ### Orders
-- `POST /api/orders` - Create new order
-- `GET /api/orders/myorders` - Get user orders
-- `GET /api/orders/:id` - Get order by ID
-- `PUT /api/orders/:id/pay` - Update order to paid
-- `PUT /api/orders/:id/deliver` - Update order to delivered (Admin)
-- `GET /api/orders` - Get all orders (Admin)
-
-### Payment
-- `POST /api/payment/create-order` - Create Razorpay order
-- `POST /api/payment/verify` - Verify payment signature
-
-### Coupons
-- `GET /api/coupons` - Get all coupons
-- `POST /api/coupons` - Create coupon (Admin)
-- `POST /api/coupons/validate` - Validate coupon code
-- `DELETE /api/coupons/:id` - Delete coupon (Admin)
-
-### Announcements
-- `GET /api/announcements` - Get active announcements
-- `POST /api/announcements` - Create announcement (Admin)
-- `PUT /api/announcements/:id` - Update announcement (Admin)
-- `DELETE /api/announcements/:id` - Delete announcement (Admin)
-
-### Contact
-- `POST /api/contact` - Send contact form message
-
-### Upload
-- `POST /api/upload` - Upload image to Cloudinary
-
-## 👨‍💼 Admin Features
-
-### Access Admin Panel
-Navigate to `/admin/dashboard` after logging in with admin credentials.
-
-### Admin Capabilities
-- View sales analytics and revenue charts
-- Manage products (CRUD operations)
-- Process and track orders
-- Manage user accounts
-- Create and manage discount coupons
-- Post announcements and promotional banners
-- Generate sales reports
-
-### Creating Admin User
-Run the following in MongoDB or use the verification script:
-```javascript
-// Update user role to admin
-db.users.updateOne(
-  { email: "admin@example.com" },
-  { $set: { role: "admin" } }
-)
-```
-
-## 🔒 Security Features
-
-- **JWT Authentication** - Secure token-based authentication
-- **Password Hashing** - Bcrypt encryption for passwords
-- **Rate Limiting** - Prevents brute force attacks
-- **Helmet.js** - Sets security HTTP headers
-- **CORS Protection** - Whitelist allowed origins
-- **Input Validation** - Express-validator for request validation
-- **XSS Protection** - Sanitizes user inputs
-- **2FA Support** - Two-factor authentication option
-- **Email Verification** - Confirms user email addresses
-
-## 🎨 Key Features Implementation
-
-### Cart Management
-- Persistent cart using Context API
-- Real-time price calculations
-- Stock validation
-
-### Wishlist
-- Save products for later
-- Quick add to cart from wishlist
-
-### Order Processing
-1. Add items to cart
-2. Proceed to checkout
-3. Enter shipping information
-4. Apply coupon (optional)
-5. Choose payment method
-6. Complete payment via Razorpay
-7. Receive order confirmation email
-
-### Payment Flow
-- Razorpay integration for secure payments
-- Support for multiple payment methods
-- Payment verification and order confirmation
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the ISC License.
-
-## 👤 Author
-
-**RK Saree Center**
-- Email: rksareecenter32@gmail.com
-
-## 🙏 Acknowledgments
-
-- React and Node.js communities
-- MongoDB Atlas for database hosting
-- Cloudinary for image management
-- Razorpay for payment processing
+| Method | Route | Description |
+|---|---|---|
+| POST | `/api/orders` | Create order |
+| GET | `/api/orders/myorders` | My orders |
+| GET | `/api/orders/:id` | Order details |
+| PUT | `/api/orders/:id/pay` | Mark paid (Razorpay) |
+| PUT | `/api/orders/:id/deliver` | Mark delivered (Admin) |
+| PUT | `/api/orders/:id/status` | Update status (Admin) |
+| PUT | `/api/orders/:id/cancel` | Cancel order (Customer) |
+| PUT | `/api/orders/bulk-status` | Bulk update status (Admin) |
+| GET | `/api/orders/stats` | Dashboard stats (Admin) |
+| GET | `/api/orders/export-csv` | Export CSV (Admin) |
 
 ---
 
-**Note**: This is a production-ready e-commerce platform. Ensure all environment variables are properly configured before deployment. For production deployment, consider using services like Vercel (frontend), Railway/Render (backend), and MongoDB Atlas (database).
+## 🚀 Deployment
+
+| Service | Platform | URL |
+|---|---|---|
+| Frontend | Vercel | https://rk-saree-center-and-fashion-hub.vercel.app |
+| Backend API | Render | https://rk-saree-center-and-fashion-hub.onrender.com |
+| Database | MongoDB Atlas | Managed cloud cluster |
+| Images | Cloudinary | CDN image delivery |
+
+### Key Deployment Notes
+- **Build Command (Render):** `npm install --legacy-peer-deps` (fixes Express 5 peer dep conflict)
+- **Start Command (Render):** `npm run dev`
+- **Root Directory (Vercel):** `frontend`
+- **SPA Routing:** `frontend/vercel.json` rewrites all paths to `index.html`
+- **CORS:** Vercel domain is whitelisted in `backend/src/server.js`
+
+---
+
+## 🔒 Security
+
+- JWT-based authentication with HTTP-only principles
+- Bcrypt password hashing
+- Server-side price validation (cart totals cannot be manipulated)
+- Express rate limiting on all routes (300/15min) and auth routes (20/15min)
+- Helmet.js security headers
+- CORS origin whitelist
+- Email verification before account activation
+- Optional Two-Factor Authentication (2FA)
+
+---
+
+## 👤 Author
+
+**Munna Kumar** — Building this as a professional online presence for our family business, **RK Saree Center**.
+
+- 📧 Email: rksareecenter32@gmail.com
+- 🐙 GitHub: [MunnaKumar32990](https://github.com/MunnaKumar32990)
+
+---
+
+*Built with ❤️ for our family business. This project represents months of learning, building, and improving to create a market-ready e-commerce store for RK Saree & Fashion Hub.*
