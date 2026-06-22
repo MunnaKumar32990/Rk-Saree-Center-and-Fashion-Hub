@@ -4,7 +4,6 @@ import {
   getMyOrders,
   getOrderById,
   getOrders,
-  updateOrderToPaid,
   updateOrderStatus,
   markOrderDelivered,
   bulkUpdateStatus,
@@ -51,7 +50,8 @@ router.post("/razorpay", protect, createRazorpayOrder);
 router.route("/:id")
   .get(protect, getOrderById);
 
-router.put("/:id/pay", protect, updateOrderToPaid);
+// C2 Fix: /pay route removed — payment confirmation MUST go through
+// POST /api/payment/verify which validates the Razorpay HMAC signature
 router.put("/:id/status", protect, admin, updateOrderStatus);
 router.put("/:id/deliver", protect, admin, markOrderDelivered);
 

@@ -76,8 +76,8 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 // ─── Body Parsing ───────────────────────────────────────────────────
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 // ─── Routes ─────────────────────────────────────────────────────────
 app.get("/sitemap.xml", getSitemap);
@@ -90,13 +90,9 @@ app.use("/api/payment", paymentRoutes);
 app.use("/api/coupons", couponRoutes);
 app.use("/api/announcements", announcementRoutes);
 
-// Health check
+// Health check — no internal info exposed
 app.get("/", (req, res) => {
-  res.json({
-    message: "RK Saree & Fashion Hub API is running",
-    version: "2.0.0",
-    env: process.env.NODE_ENV || "development",
-  });
+  res.json({ message: "Service is running" });
 });
 
 // ─── Error Handling ─────────────────────────────────────────────────

@@ -67,6 +67,21 @@ export const loginUser = asyncHandler(async (req, res) => {
       throw new Error("Your account is suspended. Contact support.");
     }
 
+    // H3 Fix: Check account lockout (too many failed attempts)
+    const LOCKOUT_THRESHOLD = 10;
+    const LOCKOUT_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+    if (
+      user.failedLoginAttempts >= LOCKOUT_THRESHOLD &&
+      user.lockoutUntil &&
+      Date.now() < user.lockoutUntil
+    ) {
+      const minutesLeft = Math.ceil((user.lockoutUntil - Date.now()) / 60000);
+      res.status(429);
+      throw new Error(
+        `Account temporarily locked. Try again in ${minutesLeft} minute(s) or reset your password.`
+      );
+    }
+
     // Check email verification (OPTIONAL - can be disabled for existing users)
     // Uncomment the lines below to make email verification mandatory:
     /*
@@ -115,11 +130,19 @@ export const loginUser = asyncHandler(async (req, res) => {
       token: generateToken(user._id, user.tokenVersion),
     });
   } else {
-    // Track failed attempt
+    // Track failed attempt and enforce lockout
     if (user) {
       user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
       user.loginHistory.unshift({ ip, userAgent, status: "failed" });
       if (user.loginHistory.length > 20) user.loginHistory = user.loginHistory.slice(0, 20);
+
+      // H3 Fix: Lock account after 10 consecutive failures
+      const LOCKOUT_THRESHOLD = 10;
+      const LOCKOUT_DURATION_MS = 30 * 60 * 1000;
+      if (user.failedLoginAttempts >= LOCKOUT_THRESHOLD) {
+        user.lockoutUntil = Date.now() + LOCKOUT_DURATION_MS;
+      }
+
       await user.save();
     }
     res.status(401);
@@ -250,9 +273,9 @@ export const forceLogout = asyncHandler(async (req, res) => {
 // @access  Admin
 export const adminResetPassword = asyncHandler(async (req, res) => {
   const { newPassword } = req.body;
-  if (!newPassword || newPassword.length < 6) {
+  if (!newPassword || newPassword.length < 8) {
     res.status(400);
-    throw new Error("Password must be at least 6 characters");
+    throw new Error("Password must be at least 8 characters");
   }
 
   const user = await User.findById(req.params.id);
@@ -466,16 +489,15 @@ export const verifyEmail = asyncHandler(async (req, res) => {
 // @access  Public
 export const resendVerification = asyncHandler(async (req, res) => {
   const { email } = req.body;
+
+  // H5 Fix: Never reveal whether an email exists — always return same message
+  const GENERIC_MSG = "If an account with this email exists and is unverified, a verification link has been sent.";
+
   const user = await User.findOne({ email });
 
-  if (!user) {
-    res.status(404);
-    throw new Error("User not found");
-  }
-
-  if (user.isEmailVerified) {
-    res.status(400);
-    throw new Error("Email already verified");
+  if (!user || user.isEmailVerified) {
+    // Return same response — do not reveal account existence or verification status
+    return res.json({ message: GENERIC_MSG });
   }
 
   const verificationToken = generateVerificationToken();
@@ -483,8 +505,13 @@ export const resendVerification = asyncHandler(async (req, res) => {
   user.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000;
   await user.save();
 
-  await sendVerificationEmail(email, verificationToken, user.name);
-  res.json({ message: "Verification email sent" });
+  try {
+    await sendVerificationEmail(email, verificationToken, user.name);
+  } catch (err) {
+    console.error("Verification email error:", err);
+  }
+
+  res.json({ message: GENERIC_MSG });
 });
 
 // @desc    Request password reset
@@ -492,11 +519,15 @@ export const resendVerification = asyncHandler(async (req, res) => {
 // @access  Public
 export const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
+
+  // H5 Fix: Never reveal whether an email exists in the system
+  const GENERIC_MSG = "If an account with this email exists, a password reset link has been sent.";
+
   const user = await User.findOne({ email });
 
   if (!user) {
-    res.status(404);
-    throw new Error("User not found");
+    // Return 200 — do not reveal that email doesn't exist
+    return res.json({ message: GENERIC_MSG });
   }
 
   const resetToken = generateVerificationToken();
@@ -504,8 +535,13 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   user.passwordResetExpires = Date.now() + 60 * 60 * 1000; // 1 hour
   await user.save();
 
-  await sendPasswordResetEmail(email, resetToken, user.name);
-  res.json({ message: "Password reset email sent" });
+  try {
+    await sendPasswordResetEmail(email, resetToken, user.name);
+  } catch (err) {
+    console.error("Password reset email error:", err);
+  }
+
+  res.json({ message: GENERIC_MSG });
 });
 
 // @desc    Reset password
@@ -616,25 +652,5 @@ export const verify2FACode = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Check user email verification status (Debug endpoint)
-// @route   POST /api/users/check-status
-// @access  Public
-export const checkUserStatus = asyncHandler(async (req, res) => {
-  const { email } = req.body;
-  const user = await User.findOne({ email }).select("-password -loginHistory");
-
-  if (!user) {
-    res.status(404);
-    throw new Error("User not found");
-  }
-
-  res.json({
-    email: user.email,
-    name: user.name,
-    isEmailVerified: user.isEmailVerified,
-    status: user.status,
-    isAdmin: user.isAdmin,
-    twoFactorEnabled: user.twoFactorEnabled,
-    createdAt: user.createdAt,
-  });
-});
+// NOTE: checkUserStatus debug endpoint was permanently removed (C1 security fix)
+// It exposed user account details (isAdmin, 2FA status, email verified) without authentication.

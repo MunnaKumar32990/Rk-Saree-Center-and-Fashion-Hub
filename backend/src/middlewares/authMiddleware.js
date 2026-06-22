@@ -13,8 +13,18 @@ export const protect = async (req, res, next) => {
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      req.user = await User.findById(decoded.id).select("-password");
+      const user = await User.findById(decoded.id).select("-password");
 
+      if (!user) {
+        return res.status(401).json({ message: "Not authorized, user not found" });
+      }
+
+      // C3 Fix: Validate tokenVersion — this makes force-logout effective
+      if ((decoded.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {
+        return res.status(401).json({ message: "Session expired. Please log in again." });
+      }
+
+      req.user = user;
       next();
     } catch (error) {
       res.status(401).json({ message: "Not authorized, token failed" });

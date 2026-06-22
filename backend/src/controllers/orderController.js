@@ -97,11 +97,14 @@ export const addOrderItems = asyncHandler(async (req, res) => {
   const itemsPrice = verifiedItems.reduce((sum, i) => sum + i.price * i.qty, 0);
   const shippingPrice = calcShipping(itemsPrice);
 
-  // Validate coupon discount if applied
+  // H4 Fix: Validate coupon discount server-side — never trust the client discount value
   let couponDiscount = 0;
-  if (couponCode && clientCouponDiscount > 0) {
-    // Cap discount at order total — can't go negative
-    couponDiscount = Math.min(clientCouponDiscount, itemsPrice);
+  if (couponCode) {
+    const couponResult = validateCoupon(couponCode, itemsPrice);
+    if (couponResult.valid) {
+      couponDiscount = couponResult.discount;
+    }
+    // If coupon is invalid/expired, silently ignore it (don't break order placement)
   }
 
   const taxPrice = 0;
@@ -207,39 +210,13 @@ export const getOrders = asyncHandler(async (req, res) => {
   res.json({ orders, page, pages: Math.ceil(total / limit), total });
 });
 
-// ─── Update to Paid (Razorpay callback) ──────────────────────────────────────
-// @route PUT /api/orders/:id/pay
-// @access Private
-export const updateOrderToPaid = asyncHandler(async (req, res) => {
-  const order = await Order.findById(req.params.id);
+// ─── Mark Order as Paid — ONLY via Razorpay signature verification ────────────
+// Direct pay endpoint removed (C2 security fix).
+// All payments MUST go through POST /api/payment/verify which validates the
+// Razorpay HMAC signature before marking an order as paid.
+// This prevents any authenticated user from marking an arbitrary order as paid
+// without a real payment.
 
-  if (!order) {
-    res.status(404);
-    throw new Error("Order not found");
-  }
-
-  order.isPaid = true;
-  order.paidAt = Date.now();
-  order.status = "Paid";
-  order.paymentResult = {
-    razorpayOrderId: req.body.razorpayOrderId,
-    razorpayPaymentId: req.body.razorpayPaymentId,
-    razorpaySignature: req.body.razorpaySignature,
-    transactionId: req.body.razorpayPaymentId || req.body.transactionId,
-    paymentGateway: "Razorpay",
-    status: "COMPLETED",
-    updateTime: new Date().toISOString(),
-  };
-  order.statusHistory.push({
-    status: "Paid",
-    note: "Payment received via Razorpay",
-    changedBy: req.user._id,
-    changedByName: "System",
-  });
-
-  const updatedOrder = await order.save();
-  res.json(updatedOrder);
-});
 
 // ─── Update Order Status (Admin) ──────────────────────────────────────────────
 // @route PUT /api/orders/:id/status
@@ -454,32 +431,59 @@ export const getOrderStats = asyncHandler(async (req, res) => {
   today.setHours(0, 0, 0, 0);
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
 
+  // H6 Fix: Use aggregation pipeline — never load all orders into memory
   const [
-    allOrders,
-    paidOrders,
-    todayOrders,
-    monthOrders,
+    overallStats,
+    todayStats,
+    monthStats,
+    statusBreakdown,
     totalUsers,
   ] = await Promise.all([
-    Order.find({}),
-    Order.find({ isPaid: true }),
-    Order.find({ createdAt: { $gte: today } }),
-    Order.find({ createdAt: { $gte: monthStart }, isPaid: true }),
+    // Total orders + total revenue (paid only)
+    Order.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalOrders: { $sum: 1 },
+          totalRevenue: {
+            $sum: { $cond: ["$isPaid", "$totalPrice", 0] },
+          },
+        },
+      },
+    ]),
+    // Today's orders + revenue
+    Order.aggregate([
+      { $match: { createdAt: { $gte: today } } },
+      {
+        $group: {
+          _id: null,
+          count: { $sum: 1 },
+          revenue: { $sum: { $cond: ["$isPaid", "$totalPrice", 0] } },
+        },
+      },
+    ]),
+    // This month's revenue (paid only)
+    Order.aggregate([
+      { $match: { createdAt: { $gte: monthStart }, isPaid: true } },
+      { $group: { _id: null, revenue: { $sum: "$totalPrice" } } },
+    ]),
+    // Status counts
+    Order.aggregate([
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+    ]),
     User.countDocuments({}),
   ]);
 
-  const totalOrders = allOrders.length;
-  const totalRevenue = paidOrders.reduce((acc, o) => acc + o.totalPrice, 0);
-  const todayRevenue = todayOrders
-    .filter((o) => o.isPaid)
-    .reduce((acc, o) => acc + o.totalPrice, 0);
-  const monthRevenue = monthOrders.reduce((acc, o) => acc + o.totalPrice, 0);
+  const overall = overallStats[0] || { totalOrders: 0, totalRevenue: 0 };
+  const todayData = todayStats[0] || { count: 0, revenue: 0 };
+  const monthRevenue = monthStats[0]?.revenue || 0;
 
   const statusCounts = {};
-  allOrders.forEach((o) => {
-    statusCounts[o.status] = (statusCounts[o.status] || 0) + 1;
+  statusBreakdown.forEach((s) => {
+    statusCounts[s._id] = s.count;
   });
 
+  const totalOrders = overall.totalOrders;
   const deliveredOrders = statusCounts["Delivered"] || 0;
   const cancelledOrders = statusCounts["Cancelled"] || 0;
   const returnedOrders = statusCounts["Returned"] || 0;
@@ -491,18 +495,15 @@ export const getOrderStats = asyncHandler(async (req, res) => {
     (statusCounts["Shipped"] || 0) +
     (statusCounts["Out for Delivery"] || 0);
 
-  const conversionRate =
-    totalOrders > 0 ? Math.round((deliveredOrders / totalOrders) * 100) : 0;
-  const refundRate =
-    totalOrders > 0 ? Math.round((refundedOrders / totalOrders) * 100) : 0;
-  const cancellationRate =
-    totalOrders > 0 ? Math.round((cancelledOrders / totalOrders) * 100) : 0;
+  const conversionRate = totalOrders > 0 ? Math.round((deliveredOrders / totalOrders) * 100) : 0;
+  const refundRate = totalOrders > 0 ? Math.round((refundedOrders / totalOrders) * 100) : 0;
+  const cancellationRate = totalOrders > 0 ? Math.round((cancelledOrders / totalOrders) * 100) : 0;
 
   res.json({
     totalOrders,
-    totalRevenue,
-    todayRevenue,
-    todayOrders: todayOrders.length,
+    totalRevenue: overall.totalRevenue,
+    todayRevenue: todayData.revenue,
+    todayOrders: todayData.count,
     monthRevenue,
     deliveredOrders,
     pendingOrders,
