@@ -2,9 +2,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
-import { FiShoppingCart, FiHeart, FiUser, FiSearch, FiMenu, FiX, FiChevronDown, FiLogOut, FiPackage, FiGrid, FiChevronRight, FiMapPin } from "react-icons/fi";
+import { FiShoppingCart, FiHeart, FiUser, FiSearch, FiMenu, FiX, FiChevronDown, FiLogOut, FiPackage, FiGrid, FiChevronRight, FiMapPin, FiLoader } from "react-icons/fi";
 import useDebounce from "../hooks/useDebounce";
 import LocationWidget from "./LocationWidget";
+import api from "../services/api";
+import { effectiveUnitPrice } from "../utils/pricing";
 
 const CATEGORY_MENU = [
   {
@@ -66,15 +68,14 @@ const MobileCategoryItem = ({ cat, onClose }) => {
 const STORAGE_KEY = "rk_user_location";
 
 const MobileLocationButton = () => {
-  const [location, setLocation] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
+  // Read straight from localStorage on first render instead of in an effect, so
+  // the stored city is correct on the very first paint rather than one frame later.
+  const [location, setLocation] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try { setLocation(JSON.parse(saved)); } catch { /* ignore */ }
-    }
-  }, []);
+    if (!saved) return null;
+    try { return JSON.parse(saved); } catch { return null; }
+  });
+  const [loading, setLoading] = useState(false);
 
   const detect = () => {
     if (!navigator.geolocation || loading) return;
@@ -134,9 +135,14 @@ const Header = () => {
   const [catDropdown, setCatDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [scrolled, setScrolled] = useState(false);
-  const debouncedSearch = useDebounce(searchQuery, 500);
+  const debouncedSearch = useDebounce(searchQuery, 300);
+  const [predictions, setPredictions] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const userRef = useRef(null);
   const catRef = useRef(null);
+  const searchBoxRef = useRef(null);
+  const mobileSearchBoxRef = useRef(null);
 
   // Handle scroll for glass effect
   useEffect(() => {
@@ -145,28 +151,85 @@ const Header = () => {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Close dropdowns on outside click
+  // Close dropdowns on outside click or Escape
   useEffect(() => {
     const handleClick = (e) => {
       if (userRef.current && !userRef.current.contains(e.target)) setUserDropdown(false);
       if (catRef.current && !catRef.current.contains(e.target)) setCatDropdown(false);
+      if (
+        searchBoxRef.current &&
+        !searchBoxRef.current.contains(e.target) &&
+        (!mobileSearchBoxRef.current || !mobileSearchBoxRef.current.contains(e.target))
+      ) {
+        setSearchOpen(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setSearchOpen(false);
+        setUserDropdown(false);
+        setCatDropdown(false);
+      }
     };
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
 
-  // Navigate on debounced search
-  useEffect(() => {
-    if (debouncedSearch.trim()) {
-      navigate(`/search?keyword=${encodeURIComponent(debouncedSearch.trim())}`);
+  const handleSearchChange = (value) => {
+    setSearchQuery(value);
+    if (value.trim().length >= 2) {
+      setSearchOpen(true);
+      setSearchLoading(true);
+    } else {
+      setPredictions([]);
+      setSearchOpen(false);
+      setSearchLoading(false);
     }
-  }, [debouncedSearch, navigate]);
+  };
+
+  // Fetch search predictions as user types
+  useEffect(() => {
+    const query = debouncedSearch.trim();
+    if (query.length < 2) return;
+
+    let active = true;
+
+    api
+      .get(`/products?keyword=${encodeURIComponent(query)}&limit=5`)
+      .then((res) => {
+        if (!active) return;
+        const list = res.data?.products || (Array.isArray(res.data) ? res.data : []);
+        setPredictions(list);
+      })
+      .catch(() => {
+        if (!active) return;
+        setPredictions([]);
+      })
+      .finally(() => {
+        if (active) setSearchLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [debouncedSearch]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
+      setSearchOpen(false);
       navigate(`/search?keyword=${encodeURIComponent(searchQuery.trim())}`);
     }
+  };
+
+  const handleSelectProduct = (productId) => {
+    setSearchOpen(false);
+    setSearchQuery("");
+    navigate(`/product/${productId}`);
   };
 
   return (
@@ -196,31 +259,174 @@ const Header = () => {
           <LocationWidget />
 
           {/* Search Bar - Desktop */}
-          <form
-            onSubmit={handleSearchSubmit}
-            className="hidden md:flex flex-1 max-w-md items-center"
-          >
-            <div className="relative w-full">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search products, categories..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-              />
-            </div>
-          </form>
+          <div ref={searchBoxRef} className="hidden md:flex flex-1 max-w-md relative">
+            <form
+              onSubmit={handleSearchSubmit}
+              className="w-full flex items-center"
+            >
+              <div className="relative w-full">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search sarees, kurtas, fabrics..."
+                  value={searchQuery}
+                  onFocus={() => {
+                    if (searchQuery.trim().length >= 2) setSearchOpen(true);
+                  }}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  className="w-full pl-10 pr-9 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setPredictions([]);
+                      setSearchOpen(false);
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
+                    aria-label="Clear search"
+                  >
+                    <FiX className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </form>
+
+            {/* Desktop Predictive Dropdown */}
+            {searchOpen && searchQuery.trim().length >= 2 && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 animate-slide-down">
+                <div className="p-2.5 border-b border-gray-100 flex items-center justify-between text-xs text-gray-500 font-semibold px-3.5 bg-gray-50/70">
+                  <span>{searchLoading ? "Searching products..." : "Suggested Products"}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSearchOpen(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <FiX className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {searchLoading ? (
+                  <div className="p-5 text-center text-xs text-gray-500 flex items-center justify-center gap-2">
+                    <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+                    Finding matching outfits...
+                  </div>
+                ) : predictions.length > 0 ? (
+                  <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
+                    {predictions.map((p) => {
+                      const thumb = p.images?.[0] || p.image || "/placeholder.jpg";
+                      const price = effectiveUnitPrice(p);
+                      return (
+                        <div
+                          key={p._id}
+                          onClick={() => handleSelectProduct(p._id)}
+                          className="flex items-center gap-3 p-3 hover:bg-primary-50/40 cursor-pointer transition-colors group"
+                        >
+                          <img
+                            src={thumb}
+                            alt={p.name}
+                            className="w-11 h-14 object-cover rounded-lg border border-gray-100 shrink-0 group-hover:scale-105 transition-transform"
+                            loading="lazy"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-gray-900 group-hover:text-primary-600 truncate">
+                              {p.name}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[11px] text-gray-400">
+                                {p.category} {p.subcategory ? `· ${p.subcategory}` : ""}
+                              </span>
+                              {p.specs?.fabric && (
+                                <span className="text-[10px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded font-medium border border-amber-200">
+                                  {p.specs.fabric}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="font-outfit font-bold text-xs text-gray-900">
+                                ₹{price.toLocaleString("en-IN")}
+                              </span>
+                              {p.discount > 0 && (
+                                <>
+                                  <span className="text-[10px] text-gray-400 line-through">
+                                    ₹{p.price?.toLocaleString("en-IN")}
+                                  </span>
+                                  <span className="text-[10px] text-emerald-600 font-bold">
+                                    {p.discount}% OFF
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <FiChevronRight className="w-4 h-4 text-gray-300 group-hover:text-primary-600 shrink-0 transition-colors" />
+                        </div>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchOpen(false);
+                        navigate(`/search?keyword=${encodeURIComponent(searchQuery.trim())}`);
+                      }}
+                      className="w-full text-center py-2.5 bg-gray-50 hover:bg-primary-50 text-xs font-semibold text-primary-700 transition-colors flex items-center justify-center gap-1 border-t border-gray-100"
+                    >
+                      <span>View all results for "{searchQuery}"</span>
+                      <FiChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-4 text-center">
+                    <p className="text-xs text-gray-600 font-medium">
+                      No matching products found for "{searchQuery}"
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleSearchSubmit}
+                      className="mt-2 text-xs text-primary-600 font-semibold hover:underline"
+                    >
+                      Search catalog anyway &rarr;
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-1">
+            <Link
+              to="/category/Women?sub=Sarees"
+              className="flex items-center gap-1 px-2.5 py-2 rounded-lg text-sm font-semibold text-primary-700 hover:bg-primary-50 transition-all whitespace-nowrap"
+            >
+              <span>🥻</span> Sarees
+            </Link>
+            <Link
+              to="/category/Women"
+              className="flex items-center gap-1 px-2.5 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-all whitespace-nowrap"
+            >
+              <span>👗</span> Women
+            </Link>
+            <Link
+              to="/category/Men"
+              className="hidden lg:flex items-center gap-1 px-2.5 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-all whitespace-nowrap"
+            >
+              <span>👔</span> Men
+            </Link>
+            <Link
+              to="/category/Kids"
+              className="hidden xl:flex items-center gap-1 px-2.5 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-all whitespace-nowrap"
+            >
+              <span>🧒</span> Kids
+            </Link>
+
             {/* Categories Mega-Dropdown */}
             <div ref={catRef} className="relative">
               <button
                 onClick={() => setCatDropdown(!catDropdown)}
-                className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-all"
+                className="flex items-center gap-1 px-2.5 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-all whitespace-nowrap"
               >
-                Categories <FiChevronDown className={`transition-transform ${catDropdown ? "rotate-180" : ""}`} />
+                More <FiChevronDown className={`transition-transform ${catDropdown ? "rotate-180" : ""}`} />
               </button>
               {catDropdown && (
                 <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 py-5 animate-slide-down z-50 flex gap-0" style={{ width: '640px' }}>
@@ -355,19 +561,117 @@ const Header = () => {
         </div>
 
         {/* Mobile Search */}
-        <div className="md:hidden pb-3">
+        <div ref={mobileSearchBoxRef} className="md:hidden pb-3 relative">
           <form onSubmit={handleSearchSubmit}>
             <div className="relative">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
-                placeholder="Search products..."
+                placeholder="Search sarees, kurtas, suits..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                onFocus={() => {
+                  if (searchQuery.trim().length >= 2) setSearchOpen(true);
+                }}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="w-full pl-10 pr-9 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setPredictions([]);
+                    setSearchOpen(false);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
+                  aria-label="Clear search"
+                >
+                  <FiX className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </form>
+
+          {/* Mobile Predictive Dropdown */}
+          {searchOpen && searchQuery.trim().length >= 2 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden z-50">
+              <div className="p-2 border-b border-gray-100 flex items-center justify-between text-xs text-gray-500 font-semibold px-3 bg-gray-50">
+                <span>{searchLoading ? "Searching..." : "Suggestions"}</span>
+                <button
+                  type="button"
+                  onClick={() => setSearchOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 p-1"
+                >
+                  <FiX className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {searchLoading ? (
+                <div className="p-4 text-center text-xs text-gray-500 flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+                  Searching products...
+                </div>
+              ) : predictions.length > 0 ? (
+                <div className="divide-y divide-gray-100 max-h-72 overflow-y-auto">
+                  {predictions.map((p) => {
+                    const thumb = p.images?.[0] || p.image || "/placeholder.jpg";
+                    const price = effectiveUnitPrice(p);
+                    return (
+                      <div
+                        key={p._id}
+                        onClick={() => handleSelectProduct(p._id)}
+                        className="flex items-center gap-2.5 p-2.5 hover:bg-primary-50/50 cursor-pointer transition-colors"
+                      >
+                        <img
+                          src={thumb}
+                          alt={p.name}
+                          className="w-10 h-12 object-cover rounded-lg border border-gray-100 shrink-0"
+                          loading="lazy"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-gray-900 truncate">{p.name}</p>
+                          <p className="text-[10px] text-gray-400">
+                            {p.category} {p.subcategory ? `· ${p.subcategory}` : ""}
+                          </p>
+                          <p className="font-outfit font-bold text-xs text-gray-900 mt-0.5">
+                            ₹{price.toLocaleString("en-IN")}
+                            {p.discount > 0 && (
+                              <span className="ml-1.5 text-[10px] text-emerald-600 font-semibold">
+                                {p.discount}% OFF
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                        <FiChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
+                      </div>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchOpen(false);
+                      navigate(`/search?keyword=${encodeURIComponent(searchQuery.trim())}`);
+                    }}
+                    className="w-full text-center py-2 bg-gray-50 text-xs font-semibold text-primary-700 flex items-center justify-center gap-1"
+                  >
+                    <span>View all for "{searchQuery}"</span>
+                    <FiChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="p-3 text-center">
+                  <p className="text-xs text-gray-500">No products found</p>
+                  <button
+                    type="button"
+                    onClick={handleSearchSubmit}
+                    className="mt-1 text-xs text-primary-600 font-semibold"
+                  >
+                    Search anyway &rarr;
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -375,6 +679,38 @@ const Header = () => {
       {menuOpen && (
         <div className="md:hidden bg-white border-t border-gray-100 animate-slide-down">
           <nav className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-1">
+            {/* Quick Category Highlight Chips */}
+            <div className="flex gap-2 overflow-x-auto pb-2 mb-2 px-1">
+              <Link
+                to="/category/Women?sub=Sarees"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary-50 text-primary-700 text-xs font-bold border border-primary-200 whitespace-nowrap"
+              >
+                <span>🥻</span> Sarees
+              </Link>
+              <Link
+                to="/category/Women"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-50 text-gray-700 text-xs font-semibold border border-gray-200 whitespace-nowrap"
+              >
+                <span>👗</span> Women
+              </Link>
+              <Link
+                to="/category/Men"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-50 text-gray-700 text-xs font-semibold border border-gray-200 whitespace-nowrap"
+              >
+                <span>👔</span> Men
+              </Link>
+              <Link
+                to="/category/Kids"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-50 text-gray-700 text-xs font-semibold border border-gray-200 whitespace-nowrap"
+              >
+                <span>🧒</span> Kids
+              </Link>
+            </div>
+
             {CATEGORY_MENU.map((cat) => (
               <MobileCategoryItem key={cat.name} cat={cat} onClose={() => setMenuOpen(false)} />
             ))}
@@ -411,6 +747,18 @@ const Header = () => {
                   <Link to="/register" onClick={() => setMenuOpen(false)} className="flex-1 text-center py-2.5 bg-primary-600 text-white rounded-xl text-sm font-semibold">Sign Up</Link>
                 </div>
               )}
+            </div>
+
+            {/* Direct WhatsApp Customer Care */}
+            <div className="pt-3 border-t border-gray-100 mt-2">
+              <a
+                href="https://wa.me/919708756854?text=Hi%20RK%20Saree%20Center%2C%20I%20need%20help%20with%20an%20order"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-emerald-700 transition-colors"
+              >
+                <span>💬</span> WhatsApp Support (+91 97087 56854)
+              </a>
             </div>
           </nav>
         </div>

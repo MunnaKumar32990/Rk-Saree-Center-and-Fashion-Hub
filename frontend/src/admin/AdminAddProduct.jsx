@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import AdminLayout from "./AdminLayout";
+import ProductSpecsEditor from "../components/ProductSpecsEditor";
 import toast from "react-hot-toast";
 import { FiUpload, FiX, FiImage } from "react-icons/fi";
 
@@ -16,7 +17,6 @@ const CATEGORIES = Object.keys(CATEGORY_SUBCATEGORY);
 const ImageUpload = ({ label, value, onChange, multiple = false }) => {
   const inputRef = useRef();
   const [uploading, setUploading] = useState(false);
-  const userInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
 
   const handleFile = async (files) => {
     if (!files.length) return;
@@ -26,19 +26,13 @@ const ImageUpload = ({ label, value, onChange, multiple = false }) => {
       if (multiple) {
         Array.from(files).forEach((f) => formData.append("images", f));
         const { data } = await api.post("/upload/multiple", formData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${userInfo.token}`,
-          },
+          headers: { "Content-Type": "multipart/form-data" },
         });
         onChange(multiple ? data.urls.map((u) => u.url) : data.urls[0].url);
       } else {
         formData.append("image", files[0]);
         const { data } = await api.post("/upload", formData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${userInfo.token}`,
-          },
+          headers: { "Content-Type": "multipart/form-data" },
         });
         onChange(data.url);
       }
@@ -125,7 +119,6 @@ const ImageUpload = ({ label, value, onChange, multiple = false }) => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 const AdminAddProduct = () => {
   const navigate = useNavigate();
-  const userInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
 
   const [name, setName] = useState("");
   const [image, setImage] = useState("");
@@ -135,11 +128,15 @@ const AdminAddProduct = () => {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [countInStock, setCountInStock] = useState("");
+  const [lowStockThreshold, setLowStockThreshold] = useState("3");
   const [sizes, setSizes] = useState([]);
   const [colors, setColors] = useState("");
   const [sku, setSku] = useState("");
   const [discount, setDiscount] = useState("");
   const [isFeatured, setIsFeatured] = useState(false);
+  const [tags, setTags] = useState("");
+  const [specs, setSpecs] = useState({});
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -150,34 +147,55 @@ const AdminAddProduct = () => {
 
   const submitHandler = async (e) => {
     e.preventDefault();
-    if (!image) return toast.error("Please upload a main product image");
+    if (!image) {
+      toast.error("Please upload a main product image");
+      return;
+    }
+
+    // Client-side pre-check so the admin gets an instant, specific error rather
+    // than a generic schema rejection.
+    const errs = {};
+    if (!name.trim()) errs.name = true;
+    if (!description.trim()) errs.description = true;
+    if (!(Number(price) > 0)) errs.price = true;
+    if (subcategory === "Sarees" && !specs.lengthMeters) errs.lengthMeters = true;
+    setFieldErrors(errs);
+    if (Object.keys(errs).length) {
+      toast.error("Please complete the highlighted fields");
+      return;
+    }
+
     setError("");
     setLoading(true);
 
     try {
-      await api.post(
-        "/products",
-        {
-          name,
-          image,
-          images: images.length ? images : [image],
-          category,
-          subcategory,
-          description,
-          price: Number(price),
-          countInStock: Number(countInStock),
-          sizes: sizes,
-          colors: colors ? colors.split(",").map((c) => c.trim()).filter(Boolean) : [],
-          sku: sku || `SKU-${Date.now()}`,
-          discount: Number(discount) || 0,
-          isFeatured,
-        },
-        { headers: { Authorization: `Bearer ${userInfo.token}` } }
-      );
-      toast.success("Product added successfully!");
+      await api.post("/products", {
+        name: name.trim(),
+        image,
+        images: images.length ? images : [image],
+        category,
+        subcategory,
+        description: description.trim(),
+        price: Number(price),
+        countInStock: Number(countInStock),
+        lowStockThreshold: Number(lowStockThreshold) || 3,
+        sizes,
+        colors: colors
+          ? colors.split(",").map((c) => c.trim()).filter(Boolean)
+          : [],
+        sku: sku.trim() || undefined,
+        discount: Number(discount) || 0,
+        isFeatured,
+        tags: tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
+        specs,
+      });
+      toast.success("Product added");
       navigate("/admin/products");
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to add product");
+      const message =
+        err.response?.data?.message || err.friendlyMessage || "Failed to add product";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -320,7 +338,48 @@ const AdminAddProduct = () => {
                   className="w-4 h-4 rounded accent-primary-600" />
                 <span className="text-sm font-semibold text-gray-700">Feature this product on Home page</span>
               </label>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="low-stock" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Low-stock alert at
+                  </label>
+                  <input
+                    id="low-stock"
+                    type="number"
+                    min="0"
+                    value={lowStockThreshold}
+                    onChange={(e) => setLowStockThreshold(e.target.value)}
+                    className="w-full border border-gray-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-400 text-sm min-h-[44px]"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Shows &ldquo;Only N left&rdquo; on the storefront below this.
+                  </p>
+                </div>
+                <div>
+                  <label htmlFor="tags" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Search tags
+                  </label>
+                  <input
+                    id="tags"
+                    value={tags}
+                    onChange={(e) => setTags(e.target.value)}
+                    placeholder="silk, wedding, handloom"
+                    className="w-full border border-gray-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-400 text-sm min-h-[44px]"
+                  />
+                </div>
+              </div>
             </div>
+
+            {/* Fabric & measurements — the highest-leverage form on this page.
+                Every field here answers a question a saree buyer asks before
+                paying, and each answer prevents a return. */}
+            <ProductSpecsEditor
+              subcategory={subcategory}
+              value={specs}
+              onChange={setSpecs}
+              errors={fieldErrors}
+            />
           </div>
 
           {/* ── Right Column ── */}
@@ -345,11 +404,11 @@ const AdminAddProduct = () => {
 
             <div className="flex flex-col gap-3">
               <button type="submit" disabled={loading}
-                className="w-full bg-primary-600 hover:bg-primary-700 text-white py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-50 shadow-md">
-                {loading ? "Adding Product..." : "Add Product"}
+                className="w-full bg-primary-600 hover:bg-primary-700 text-white py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-50 shadow-md min-h-[48px] focus:outline-none focus-visible:ring-4 focus-visible:ring-primary-300">
+                {loading ? "Adding Product…" : "Add Product"}
               </button>
               <button type="button" onClick={() => navigate("/admin/products")}
-                className="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold text-sm hover:bg-gray-200 transition-all border border-gray-200">
+                className="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold text-sm hover:bg-gray-200 transition-all border border-gray-200 min-h-[48px]">
                 Cancel
               </button>
             </div>

@@ -1,14 +1,14 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import api from "../services/api";
 import AdminLayout from "./AdminLayout";
 import toast from "react-hot-toast";
-import jsPDF from "jspdf";
 import {
     FiArrowLeft, FiPackage, FiUser, FiMapPin, FiCreditCard,
     FiTruck, FiClock, FiDownload, FiPrinter, FiEdit2, FiCheck,
-    FiRotateCcw, FiAlertCircle
+    FiRotateCcw, FiAlertCircle, FiShield, FiMessageCircle, FiTag
 } from "react-icons/fi";
+import ShippingLabelModal from "../components/ShippingLabelModal";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -125,9 +125,10 @@ const AdminOrderDetails = () => {
     const [returnNote, setReturnNote] = useState("");
     const [refundAmt, setRefundAmt] = useState("");
     const [returnLoading, setReturnLoading] = useState(false);
+    const [showShippingLabel, setShowShippingLabel] = useState(false);
 
     // ── Fetch ──────────────────────────────────────────────────────────────────
-    const fetchOrder = async () => {
+    const fetchOrder = useCallback(async () => {
         try {
             setLoading(true);
             const { data } = await api.get(`/orders/${id}`);
@@ -142,9 +143,9 @@ const AdminOrderDetails = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [id]);
 
-    useEffect(() => { fetchOrder(); }, [id]);
+    useEffect(() => { fetchOrder(); }, [fetchOrder]);
 
     // ── Update Status ──────────────────────────────────────────────────────────
     const handleStatusUpdate = async () => {
@@ -188,8 +189,12 @@ const AdminOrderDetails = () => {
     };
 
     // ── Invoice PDF ────────────────────────────────────────────────────────────
-    const downloadInvoice = () => {
+    // jsPDF is ~650 kB uncompressed; importing it on click keeps it out of the
+    // admin bundle until someone actually exports an invoice.
+    const downloadInvoice = async () => {
         if (!order) return;
+        try {
+        const { default: jsPDF } = await import("jspdf");
         const doc = new jsPDF();
         const col1 = 20, col2 = 120;
 
@@ -284,6 +289,10 @@ const AdminOrderDetails = () => {
         doc.text(`Rs.${order.totalPrice?.toFixed(0)}`, priceX, y);
 
         doc.save(`invoice-${order._id.slice(-8).toUpperCase()}.pdf`);
+        } catch (err) {
+            console.error("Invoice generation failed:", err);
+            toast.error("Couldn't generate the invoice PDF.");
+        }
     };
 
     // ── Loading / Error ────────────────────────────────────────────────────────
@@ -316,7 +325,6 @@ const AdminOrderDetails = () => {
     }
 
     const validNext = VALID_TRANSITIONS[order.status] || [];
-    const cfg = STATUS_CONFIG[order.status] || STATUS_CONFIG["Pending Payment"];
 
     return (
         <AdminLayout>
@@ -343,6 +351,10 @@ const AdminOrderDetails = () => {
                         <StatusBadge status={order.status} />
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
+                        <button onClick={() => setShowShippingLabel(true)}
+                            className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm">
+                            <FiTag className="w-4 h-4" /> Shipping Label (4x6)
+                        </button>
                         <button onClick={downloadInvoice}
                             className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-all">
                             <FiDownload className="w-4 h-4" /> Invoice PDF
@@ -480,6 +492,92 @@ const AdminOrderDetails = () => {
 
                     {/* ── Right Column (1/3) ── */}
                     <div className="space-y-5">
+
+                        {/* RTO Risk Assessment */}
+                        <Card title="RTO Risk Assessment" icon={FiShield}>
+                            {order.paymentMethod === "COD" ? (
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-xs font-semibold text-gray-500">Risk Level:</span>
+                                        <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full ${
+                                            order.rtoRisk?.level === "high"
+                                                ? "bg-red-100 text-red-700"
+                                                : order.rtoRisk?.level === "medium"
+                                                ? "bg-amber-100 text-amber-700"
+                                                : "bg-emerald-100 text-emerald-700"
+                                        }`}>
+                                            {order.rtoRisk?.level === "high" && "⚠️ High Risk"}
+                                            {order.rtoRisk?.level === "medium" && "⚡ Medium Risk"}
+                                            {order.rtoRisk?.level === "low" && "✓ Low Risk"}
+                                            {!order.rtoRisk?.level && "Standard"}
+                                        </span>
+                                    </div>
+
+                                    {order.rtoRisk?.score !== undefined && (
+                                        <div>
+                                            <div className="flex justify-between text-xs text-gray-500 mb-1">
+                                                <span>Risk Probability:</span>
+                                                <span className="font-bold">{order.rtoRisk.score}%</span>
+                                            </div>
+                                            <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+                                                <div
+                                                    className={`h-full rounded-full transition-all ${
+                                                        order.rtoRisk.level === "high"
+                                                            ? "bg-red-500"
+                                                            : order.rtoRisk.level === "medium"
+                                                            ? "bg-amber-500"
+                                                            : "bg-emerald-500"
+                                                    }`}
+                                                    style={{ width: `${Math.min(100, Math.max(10, order.rtoRisk.score))}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {order.rtoRisk?.reasons?.length > 0 && (
+                                        <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                                            <p className="text-[11px] font-bold text-gray-700 uppercase tracking-wide mb-1.5">
+                                                Risk Factors Detected:
+                                            </p>
+                                            <ul className="space-y-1 text-xs text-gray-600">
+                                                {order.rtoRisk.reasons.map((reason, idx) => (
+                                                    <li key={idx} className="flex items-start gap-1.5">
+                                                        <span className="text-amber-500 mt-0.5">•</span>
+                                                        <span>{reason}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+
+                                    {/* 1-Click WhatsApp Verification for Seller */}
+                                    <div className="pt-2 border-t border-gray-100 space-y-2">
+                                        <a
+                                            href={`https://wa.me/91${(order.shippingAddress?.phone || order.user?.phone || "").replace(/\D/g, "").slice(-10)}?text=${encodeURIComponent(
+                                                `Namaste ${order.shippingAddress?.fullName || order.user?.name || "Customer"}! 🙏 Greetings from RK Saree Center & Fashion Hub.\n\nWe have received your order #${order._id.slice(-8).toUpperCase()} for ₹${order.totalPrice?.toLocaleString("en-IN")} via Cash on Delivery.\n\nTo ensure timely doorstep delivery, please reply with:\n1. "CONFIRM" to approve dispatch\n2. Any nearby landmark (school, temple, hospital) to help the courier partner.\n\nThank you!`
+                                            )}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
+                                        >
+                                            <FiMessageCircle className="w-4 h-4" /> Verify COD via WhatsApp
+                                        </a>
+                                        <p className="text-[10px] text-gray-400 text-center">
+                                            Sending WhatsApp confirmation reduces COD return-to-origin by up to 60%.
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-800 space-y-1">
+                                    <p className="font-bold flex items-center gap-1.5">
+                                        <FiCheck className="text-emerald-600" /> Prepaid Order — Zero RTO Risk
+                                    </p>
+                                    <p className="text-[11px] text-emerald-700">
+                                        Payment confirmed via {order.paymentMethod || "Online Gateway"}. Safe for immediate courier dispatch.
+                                    </p>
+                                </div>
+                            )}
+                        </Card>
 
                         {/* Payment Details */}
                         <Card title="Payment Details" icon={FiCreditCard}>
@@ -632,6 +730,14 @@ const AdminOrderDetails = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Courier Dispatch Shipping Label Modal */}
+            {showShippingLabel && (
+                <ShippingLabelModal
+                    order={order}
+                    onClose={() => setShowShippingLabel(false)}
+                />
+            )}
         </AdminLayout>
     );
 };

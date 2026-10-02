@@ -1,14 +1,23 @@
 User-agent: *
 Allow: /
 
-# Block admin panel from being indexed
+# Admin panel and account pages carry no search value and shouldn't be indexed.
 Disallow: /admin/
+Disallow: /profile
+Disallow: /myorders
+Disallow: /wishlist
+Disallow: /2fa
+Disallow: /verify-email/
 
-# Block checkout flow from indexing (no SEO value)
+# Transactional flow — never index a half-finished checkout.
 Disallow: /checkout
 Disallow: /placeorder
 Disallow: /payment/
 Disallow: /success
+Disallow: /reset-password/
+Disallow: /forgot-password
 
-# Sitemap
+# Served by the API, not the SPA.
+Disallow: /api/
+
 Sitemap: https://rksareefashionhub.com/sitemap.xml

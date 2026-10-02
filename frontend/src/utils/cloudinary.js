@@ -44,12 +44,46 @@ export const thumbImage = (url) => getOptimizedImageUrl(url, 150);
 export const bannerImage = (url) => getOptimizedImageUrl(url, 800, 75);
 
 /**
- * Generates descriptive alt text for product images.
- * @param {object} product
- * @returns {string}
+ * productAlt — descriptive alt text.
+ *
+ * The original produced "Silk Saree — Women — RK Saree & Fashion Hub", which is
+ * keyword-stuffed and describes nothing. Alt text should let a screen-reader
+ * user (or a Google crawler) understand what is actually shown, so this
+ * includes colour, fabric and weave where they're known — which is also exactly
+ * what people search for.
  */
 export const productAlt = (product) => {
-  if (!product) return "RK Saree & Fashion Hub product";
-  const parts = [product.name, product.category, product.brand].filter(Boolean);
-  return `${parts.join(" — ")} | RK Saree & Fashion Hub`;
+  if (!product) return "Product photo from RK Saree Center & Fashion Hub";
+
+  const s = product.specs || {};
+  const bits = [product.name];
+
+  const colour = [s.colourFamily, product.colors?.[0]].find(Boolean);
+  if (colour) bits.push(colour);
+
+  const material = s.fabric || (s.weave ? `${s.weave} fabric` : "");
+  if (material) bits.push(material);
+
+  const detail = [];
+  if (s.blousePieceIncluded) {
+    detail.push(
+      s.blousePieceMeters
+        ? `blouse piece included (${s.blousePieceMeters} m)`
+        : "blouse piece included"
+    );
+  }
+  if (s.lengthMeters) detail.push(`${s.lengthMeters} m long`);
+
+  let alt = bits.filter(Boolean).join(", ");
+  if (detail.length) alt += `, ${detail.join(", ")}`;
+
+  return alt;
+};
+
+/** srcset widths for responsive images — lets phones fetch only what they need. */
+export const responsiveSrcSet = (url, widths = [200, 400, 600, 800]) => {
+  if (!url || !url.includes("cloudinary.com")) return undefined;
+  return widths
+    .map((w) => `${getOptimizedImageUrl(url, w)} ${w}w`)
+    .join(", ");
 };

@@ -1,16 +1,83 @@
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
-import { FiTrash2, FiMinus, FiPlus, FiShoppingBag, FiArrowRight, FiTruck } from "react-icons/fi";
+import { FiTrash2, FiMinus, FiPlus, FiShoppingBag, FiArrowRight, FiTruck, FiTag, FiX, FiLoader, FiPercent } from "react-icons/fi";
 import { calculateShipping, calculateTax, amountToFreeShipping, FREE_SHIPPING_THRESHOLD, formatPrice } from "../utils/pricing";
 import { Helmet } from "react-helmet-async";
+import toast from "react-hot-toast";
+import api from "../services/api";
+import { readJSON, writeJSON, removeRaw, KEYS } from "../utils/storage";
 
 const Cart = () => {
   const navigate = useNavigate();
   const { cartItems, updateQty, removeFromCart, cartTotal, clearCart } = useCart();
 
+  const [appliedCoupon, setAppliedCoupon] = useState(() => readJSON(KEYS.COUPON, null));
+  const [couponInput, setCouponInput] = useState("");
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState("");
+  const [availableCoupons, setAvailableCoupons] = useState([]);
+  const [showCoupons, setShowCoupons] = useState(false);
+
+  // Fetch available public coupons on mount
+  useEffect(() => {
+    let active = true;
+    api.get("/coupons/public")
+      .then((res) => {
+        if (active && Array.isArray(res.data)) {
+          setAvailableCoupons(res.data);
+        }
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  const handleApplyCoupon = async (codeToApply) => {
+    const code = (codeToApply || "").trim().toUpperCase();
+    if (!code) {
+      setCouponError("Please enter a coupon code");
+      return;
+    }
+    setCouponLoading(true);
+    setCouponError("");
+    try {
+      const { data } = await api.post("/coupons/validate", {
+        code,
+        orderAmount: cartTotal,
+        cartItems: cartItems.map((i) => ({ product: i._id, qty: i.qty, price: i.price })),
+      });
+      const couponObj = {
+        code: data.code,
+        discount: data.discount,
+        description: data.description,
+        discountType: data.discountType,
+        discountValue: data.discountValue,
+      };
+      setAppliedCoupon(couponObj);
+      writeJSON(KEYS.COUPON, couponObj);
+      setCouponInput("");
+      setShowCoupons(false);
+      toast.success(`Coupon ${data.code} applied! You saved ₹${data.discount} 🎉`);
+    } catch (err) {
+      const msg = err.response?.data?.message || "Invalid or inapplicable coupon code";
+      setCouponError(msg);
+      toast.error(msg);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    removeRaw(KEYS.COUPON);
+    setCouponError("");
+    toast.success("Coupon removed");
+  };
+
   const shippingPrice = calculateShipping(cartTotal);
   const taxPrice = calculateTax(cartTotal);
-  const orderTotal = cartTotal + shippingPrice + taxPrice;
+  const couponDiscount = appliedCoupon ? appliedCoupon.discount : 0;
+  const orderTotal = Math.max(0, cartTotal - couponDiscount) + shippingPrice + taxPrice;
   const remaining = amountToFreeShipping(cartTotal);
 
   if (cartItems.length === 0) {
@@ -135,11 +202,138 @@ const Cart = () => {
                 </div>
               )}
 
+              {/* Coupon Section */}
+              <div className="border-t border-b border-gray-100 py-4 mb-5">
+                {appliedCoupon ? (
+                  <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800">
+                        <FiTag className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>{appliedCoupon.code} APPLIED</span>
+                      </div>
+                      <p className="text-xs text-emerald-700 mt-0.5">
+                        Saving {formatPrice(appliedCoupon.discount)}
+                        {appliedCoupon.description ? ` (${appliedCoupon.description})` : ""}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      className="text-xs font-semibold text-red-600 hover:text-red-700 p-1"
+                      aria-label="Remove coupon"
+                    >
+                      <FiX className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Coupon code"
+                        value={couponInput}
+                        onChange={(e) => {
+                          setCouponInput(e.target.value.toUpperCase());
+                          setCouponError("");
+                        }}
+                        onKeyDown={(e) => e.key === "Enter" && handleApplyCoupon(couponInput)}
+                        className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-xs uppercase font-medium focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      />
+                      <button
+                        type="button"
+                        disabled={couponLoading || !couponInput.trim()}
+                        onClick={() => handleApplyCoupon(couponInput)}
+                        className="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all"
+                      >
+                        {couponLoading ? <FiLoader className="w-3.5 h-3.5 animate-spin" /> : "Apply"}
+                      </button>
+                    </div>
+                    {couponError && (
+                      <p className="text-[11px] text-red-600 mt-1.5">{couponError}</p>
+                    )}
+
+                    {availableCoupons.length > 0 && (
+                      <div className="mt-3">
+                        <button
+                          type="button"
+                          onClick={() => setShowCoupons((v) => !v)}
+                          className="flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:text-primary-800"
+                        >
+                          <FiPercent className="w-3.5 h-3.5" />
+                          <span>
+                            {showCoupons ? "Hide" : "View"} {availableCoupons.length} Available Offer{availableCoupons.length === 1 ? "" : "s"}
+                          </span>
+                        </button>
+
+                        {showCoupons && (
+                          <div className="mt-2.5 space-y-2 max-h-48 overflow-y-auto pr-1">
+                            {availableCoupons.map((c) => {
+                              const meetsMin = !c.minOrderAmount || cartTotal >= c.minOrderAmount;
+                              return (
+                                <div
+                                  key={c.code}
+                                  className={`p-2.5 rounded-xl border border-dashed transition-all flex items-center justify-between gap-2 ${
+                                    meetsMin
+                                      ? "bg-accent-50/40 border-accent-300 hover:bg-accent-50"
+                                      : "bg-gray-50 border-gray-200 opacity-70"
+                                  }`}
+                                >
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="font-bold text-xs text-primary-800 tracking-wide">
+                                        {c.code}
+                                      </span>
+                                      <span className="text-[10px] bg-primary-100 text-primary-800 px-1.5 py-0.2 rounded font-semibold">
+                                        {c.discountType === "percentage"
+                                          ? `${c.discountValue}% OFF`
+                                          : `₹${c.discountValue} OFF`}
+                                      </span>
+                                    </div>
+                                    <p className="text-[11px] text-gray-500 mt-0.5 truncate">
+                                      {c.description || (c.minOrderAmount > 0 ? `Min order ₹${c.minOrderAmount}` : "No minimum")}
+                                    </p>
+                                    {!meetsMin && (
+                                      <p className="text-[10px] text-amber-700 font-medium">
+                                        Add {formatPrice(c.minOrderAmount - cartTotal)} more to apply
+                                      </p>
+                                    )}
+                                  </div>
+                                  {meetsMin ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleApplyCoupon(c.code)}
+                                      disabled={couponLoading}
+                                      className="text-xs font-bold text-accent-700 hover:text-accent-800 px-2 py-1 bg-white rounded-lg border border-accent-200 shadow-xs shrink-0"
+                                    >
+                                      Apply
+                                    </button>
+                                  ) : (
+                                    <span className="text-[10px] text-gray-400 font-semibold shrink-0">
+                                      Locked
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-3 mb-5">
                 <div className="flex justify-between text-sm text-gray-600">
                   <span>Subtotal ({cartItems.reduce((a, b) => a + b.qty, 0)} items)</span>
                   <span className="font-medium text-gray-900">₹{cartTotal.toLocaleString("en-IN")}</span>
                 </div>
+                {couponDiscount > 0 && (
+                  <div className="flex justify-between text-sm text-emerald-600 font-semibold">
+                    <span>Coupon Discount ({appliedCoupon?.code})</span>
+                    <span>-{formatPrice(couponDiscount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm text-gray-600">
                   <span>Shipping</span>
                   <span className={`font-medium ${shippingPrice === 0 ? "text-green-600" : "text-gray-900"}`}>

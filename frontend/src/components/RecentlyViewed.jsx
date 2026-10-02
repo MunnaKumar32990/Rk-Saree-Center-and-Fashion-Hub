@@ -1,4 +1,7 @@
-import { useEffect, useState } from "react";
+/* eslint-disable react-refresh/only-export-components -- The component and the
+   hook that feeds it are one unit: the hook reads/writes the same localStorage
+   key and has no meaning on its own. */
+import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
 import { cardImage, productAlt } from "../utils/cloudinary";
 import { formatPrice } from "../utils/pricing";
@@ -9,19 +12,24 @@ const MAX_ITEMS = 6;
 /**
  * useRecentlyViewed — hook that manages a localStorage list of viewed product IDs.
  * Call trackView(product) in ProductDetails to record a view.
+ *
+ * Both callbacks are memoised with an empty dependency list: they only touch
+ * localStorage and a module constant, so their identity is stable for the life
+ * of the component. That is what lets callers list `trackView` in a
+ * useEffect dependency array without re-running the effect on every render.
  */
 export const useRecentlyViewed = () => {
-  const getItems = () => {
+  const getItems = useCallback(() => {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
     catch { return []; }
-  };
+  }, []);
 
-  const trackView = (product) => {
+  const trackView = useCallback((product) => {
     if (!product?._id) return;
     const items = getItems().filter((p) => p._id !== product._id);
     const updated = [{ _id: product._id, name: product.name, price: product.price, image: product.image, category: product.category, discount: product.discount }, ...items].slice(0, MAX_ITEMS);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  };
+  }, [getItems]);
 
   return { trackView, getItems };
 };
@@ -32,12 +40,16 @@ export const useRecentlyViewed = () => {
  */
 const RecentlyViewed = ({ currentProductId }) => {
   const { getItems } = useRecentlyViewed();
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState(() => getItems().filter((p) => p._id !== currentProductId));
 
-  useEffect(() => {
-    const all = getItems().filter((p) => p._id !== currentProductId);
-    setItems(all);
-  }, [currentProductId]);
+  // Re-read the list whenever the product being viewed changes. Adjusting state
+  // during render (React's documented "reset state on prop change" pattern)
+  // avoids the wasted intermediate render an effect would produce.
+  const [prevProductId, setPrevProductId] = useState(currentProductId);
+  if (prevProductId !== currentProductId) {
+    setPrevProductId(currentProductId);
+    setItems(getItems().filter((p) => p._id !== currentProductId));
+  }
 
   if (items.length === 0) return null;
 

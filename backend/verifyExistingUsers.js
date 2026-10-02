@@ -1,34 +1,71 @@
+/**
+ * verifyExistingUsers.js — maintenance script.
+ *
+ * Marks existing accounts as email-verified so the backfill doesn't log anybody
+ * out. Intended to be run ONCE after upgrading from a version where email
+ * verification was unenforced.
+ *
+ * Usage:
+ *   node verifyExistingUsers.js --confirm
+ *
+ * Two bugs in the original version, both fixed here:
+ *  1. It used `$set: { token: undefined }`, which Mongoose strips from the
+ *     update — so verification tokens and their expiries were left in the
+ *     database and remained usable for their full 24 hours.
+ *  2. It had no confirmation gate, so a stray invocation silently marked every
+ *     unverified account on the system as verified.
+ */
+
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+import connectDB from "./src/config/db.js";
 import User from "./src/models/User.js";
 
 dotenv.config();
 
-const verifyAllExistingUsers = async () => {
-  try {
-    await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ Connected to MongoDB");
+const confirmed = process.argv.includes("--confirm");
 
-    // Update all existing users to have verified emails
-    const result = await User.updateMany(
-      { isEmailVerified: { $ne: true } },
-      { 
-        $set: { 
-          isEmailVerified: true,
-          emailVerificationToken: undefined,
-          emailVerificationExpires: undefined
-        } 
-      }
-    );
+if (!confirmed) {
+  console.log(`
+This script marks every unverified account as verified.
 
-    console.log(`✅ Updated ${result.modifiedCount} users`);
-    console.log("✅ All existing users are now verified!");
-    
-    process.exit(0);
-  } catch (error) {
-    console.error("❌ Error:", error);
-    process.exit(1);
+It exists for one-off use when migrating from a version where email
+verification was not enforced. It is NOT a routine operation.
+
+Run it only when you are certain:
+  node verifyExistingUsers.js --confirm
+`);
+  process.exit(0);
+}
+
+await connectDB();
+
+const result = await User.updateMany(
+  { isEmailVerified: false },
+  {
+    $set: { isEmailVerified: true },
+    // $unset — not $set undefined, which Mongoose discards.
+    $unset: {
+      emailVerificationToken: "",
+      emailVerificationExpires: "",
+      pendingEmailToken: "",
+      pendingEmailExpires: "",
+    },
   }
-};
+);
 
-verifyAllExistingUsers();
+console.log(`\nVerified ${result.modifiedCount} account(s).`);
+
+const remaining = await User.countDocuments({
+  $or: [
+    { emailVerificationToken: { $exists: true } },
+    { passwordResetToken: { $exists: true } },
+  ],
+});
+
+if (remaining > 0) {
+  console.log(`Warning: ${remaining} document(s) still carry a live token.`);
+}
+
+await mongoose.connection.close();
+process.exit(0);

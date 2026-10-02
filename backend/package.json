@@ -1,35 +1,47 @@
 {
-  "name": "backend",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "rk-saree-api",
+  "version": "2.0.0",
+  "description": "Storefront API for RK Saree Center & Fashion Hub",
+  "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node node_modules/nodemon/bin/nodemon.js src/server.js"
+    "dev": "node node_modules/nodemon/bin/nodemon.js src/server.js",
+    "test": "node scripts/e2e-run.mjs",
+    "test:setup": "node scripts/initReplicaSet.mjs",
+    "verify:users": "node verifyExistingUsers.js --confirm",
+    "assets": "node scripts/generate-assets.mjs"
   },
   "keywords": [],
-  "author": "",
+  "author": "RK Saree Center & Fashion Hub",
   "license": "ISC",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "//overrides": "multer-storage-cloudinary@4 declares peer cloudinary@^1.21.0 but only uses cloudinary.v2.uploader, so it is compatible with v2. Without this override a clean `npm install` fails with ERESOLVE.",
+  "overrides": {
+    "multer-storage-cloudinary": {
+      "cloudinary": "$cloudinary"
+    }
+  },
   "dependencies": {
     "bcrypt": "^6.0.0",
-    "bcryptjs": "^3.0.3",
     "cloudinary": "^2.9.0",
+    "compression": "^1.8.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
-    "express-async-errors": "^3.1.1",
     "express-rate-limit": "^8.2.1",
-    "express-validator": "^7.3.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.1.0",
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
     "multer-storage-cloudinary": "^4.0.0",
-    "nodemailer": "^7.0.12",
-    "nodemon": "^3.1.11",
+    "nodemailer": "^10.0.13",
     "razorpay": "^2.9.6"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
 }

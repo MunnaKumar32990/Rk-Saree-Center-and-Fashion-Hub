@@ -59,10 +59,21 @@ function useCounter(target, duration = 1400, active = false) {
   // Check if the numeric part is a decimal (like "4.8") — skip animation for these
   const numericPart = target.replace(/[^\d.]/g, "");
   const isDecimal = numericPart.includes(".");
+  const end = parseInt(numericPart) || 0;
+
+  // When there is no number to count to ("Growing", "0+") the raw target is
+  // displayed. Discard whatever the previous animation left in `val` while
+  // rendering (React's documented "adjust state on change" pattern) rather than
+  // from inside the effect, which would cause a cascading render.
+  const [prevTarget, setPrevTarget] = useState(target);
+  if (prevTarget !== target) {
+    setPrevTarget(target);
+    if (!end) setVal(target);
+  }
+
   useEffect(() => {
     if (!active || isDecimal) return;
-    const end = parseInt(numericPart) || 0;
-    if (!end) { setVal(target); return; }
+    if (!end) return;
     const step = Math.ceil(end / (duration / 16));
     let cur = 0;
     const timer = setInterval(() => {
@@ -71,7 +82,7 @@ function useCounter(target, duration = 1400, active = false) {
       if (cur >= end) clearInterval(timer);
     }, 16);
     return () => clearInterval(timer);
-  }, [active, target, duration, isDecimal, numericPart]);
+  }, [active, target, duration, isDecimal, numericPart, end]);
   return val || target;
 }
 

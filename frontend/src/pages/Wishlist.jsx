@@ -1,15 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
 import { useWishlist } from "../context/WishlistContext";
-import api from "../services/api";
 import { PageLoader } from "../components/Loader";
 import ProductCard from "../components/ProductCard";
 import { FiHeart, FiTrash2 } from "react-icons/fi";
 
 const Wishlist = () => {
-    const { userInfo } = useAuth();
-    const { wishlist, fetchWishlist, removeFromWishlist } = useWishlist();
+    const { wishlist, fetchWishlist } = useWishlist();
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -20,14 +17,18 @@ const Wishlist = () => {
             setLoading(false);
         };
         load();
-    }, []);
+    }, [fetchWishlist]);
 
-    useEffect(() => {
-        // wishlist is an array of product objects or ids
+    // wishlist is an array of product objects or ids. Mirroring it into local
+    // state during render (React's "adjust state on change" pattern) keeps the
+    // list in step with the context without an extra effect-driven render.
+    const [prevWishlist, setPrevWishlist] = useState(wishlist);
+    if (prevWishlist !== wishlist) {
+        setPrevWishlist(wishlist);
         if (wishlist.length > 0 && typeof wishlist[0] === "object") {
             setProducts(wishlist);
         }
-    }, [wishlist]);
+    }
 
     if (loading) return <PageLoader text="Loading wishlist..." />;
 

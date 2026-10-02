@@ -1,12 +1,25 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import toast from "react-hot-toast";
-import jsPDF from "jspdf";
 import {
   FiPackage, FiTruck, FiMapPin, FiClock,
-  FiRotateCcw, FiDownload, FiChevronRight, FiAlertCircle
+  FiRotateCcw, FiDownload, FiChevronRight, FiAlertCircle, FiMessageCircle,
+  FiCopy, FiCheck, FiExternalLink
 } from "react-icons/fi";
+
+const getTrackingUrl = (courierName, trackingNumber, existingUrl) => {
+  if (existingUrl) return existingUrl;
+  if (!trackingNumber) return "#";
+  const c = (courierName || "").toLowerCase();
+  if (c.includes("delhivery")) return `https://www.delhivery.com/track/package/${trackingNumber}`;
+  if (c.includes("blue dart") || c.includes("bluedart")) return `https://www.bluedart.com/tracking?trackNumber=${trackingNumber}`;
+  if (c.includes("dtdc")) return `https://www.dtdc.in/tracking.asp`;
+  if (c.includes("speed post") || c.includes("india post") || c.includes("indiapost")) return `https://www.indiapost.gov.in/_layouts/15/dptc/tracking.aspx`;
+  if (c.includes("shiprocket")) return `https://shiprocket.co/tracking/${trackingNumber}`;
+  if (c.includes("ekart")) return `https://ekartlogistics.com/shipmenttrack/${trackingNumber}`;
+  return `https://www.google.com/search?q=${encodeURIComponent(`${courierName || "courier"} tracking ${trackingNumber}`)}`;
+};
 
 const STATUS_CONFIG = {
   "Pending Payment": { color: "bg-orange-100 text-orange-700", dot: "bg-orange-400", icon: "⏳", step: 0 },
@@ -46,8 +59,17 @@ export default function OrderDetails() {
   const [submitting, setSubmitting] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [copiedAwb, setCopiedAwb] = useState(false);
 
-  const fetchOrder = async () => {
+  const copyAwb = (awb) => {
+    if (!awb) return;
+    navigator.clipboard.writeText(awb);
+    setCopiedAwb(true);
+    toast.success("AWB / Tracking number copied!");
+    setTimeout(() => setCopiedAwb(false), 2000);
+  };
+
+  const fetchOrder = useCallback(async () => {
     try {
       setLoading(true);
       const { data } = await api.get(`/orders/${id}`);
@@ -59,9 +81,9 @@ export default function OrderDetails() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  useEffect(() => { fetchOrder(); }, [id]);
+  useEffect(() => { fetchOrder(); }, [fetchOrder]);
 
   const handleReturnRequest = async (e) => {
     e.preventDefault();
@@ -93,9 +115,14 @@ export default function OrderDetails() {
     }
   };
 
-  const downloadInvoice = () => {
+  // Lazy-load the PDF library. It is ~650 kB uncompressed and the overwhelming
+  // majority of visitors never download an invoice, so it is imported on click
+  // rather than shipped with the route chunk.
+  const downloadInvoice = async () => {
     if (!order) return;
-    const doc = new jsPDF();
+    try {
+      const { default: jsPDF } = await import("jspdf");
+      const doc = new jsPDF();
     doc.setFillColor(79, 70, 229);
     doc.rect(0, 0, 210, 38, "F");
     doc.setTextColor(255, 255, 255);
@@ -135,6 +162,10 @@ export default function OrderDetails() {
     doc.setFont("helvetica", "bold"); doc.setFontSize(11);
     doc.text("Grand Total", 20, y); doc.text(`Rs.${order.totalPrice?.toFixed(0)}`, 160, y);
     doc.save(`order-${order._id.slice(-8).toUpperCase()}.pdf`);
+    } catch (err) {
+      console.error("Invoice generation failed:", err);
+      toast.error("Couldn't generate the PDF. Please try again.");
+    }
   };
 
   if (loading) return (
@@ -150,7 +181,7 @@ export default function OrderDetails() {
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
       <FiAlertCircle className="w-12 h-12 text-red-400" />
       <p className="text-gray-600">Order not found</p>
-      <button onClick={() => navigate("/orders")} className="text-primary-600 font-semibold hover:underline">← My Orders</button>
+      <button onClick={() => navigate("/myorders")} className="text-primary-600 font-semibold hover:underline">← My Orders</button>
     </div>
   );
 
@@ -159,7 +190,7 @@ export default function OrderDetails() {
   const isCancelled = order.status === "Cancelled";
   const isDelivered = order.status === "Delivered";
   const canReturn = isDelivered && !returnReq;
-  const canCancel = ["Pending Payment", "Confirmed"].includes(order.status);
+  const canCancel = ["Pending Payment", "Paid", "Confirmed"].includes(order.status);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
@@ -168,7 +199,7 @@ export default function OrderDetails() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
-              <button onClick={() => navigate("/orders")}
+              <button onClick={() => navigate("/myorders")}
                 className="w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-all">
                 <span className="text-gray-600 text-sm">←</span>
               </button>
@@ -179,15 +210,25 @@ export default function OrderDetails() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full ${cfg.color}`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
                 {order.status}
               </span>
               <button onClick={downloadInvoice}
-                className="flex items-center gap-1.5 bg-primary-600 hover:bg-primary-700 text-white px-3 py-2 rounded-xl text-xs font-semibold transition-all">
+                className="flex items-center gap-1.5 bg-primary-600 hover:bg-primary-700 text-white px-3 py-2 rounded-xl text-xs font-semibold transition-all shadow-xs">
                 <FiDownload className="w-3.5 h-3.5" /> Invoice
               </button>
+              <a
+                href={`https://wa.me/919708756854?text=${encodeURIComponent(
+                  `Hi RK Saree Center! I need assistance with my Order #${order._id.slice(-8).toUpperCase()} (Status: ${order.status}).`
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-semibold transition-all shadow-xs"
+              >
+                <FiMessageCircle className="w-3.5 h-3.5" /> WhatsApp Help
+              </a>
             </div>
           </div>
         </div>
@@ -298,6 +339,74 @@ export default function OrderDetails() {
             </div>
           </div>
         </div>
+
+        {/* ── Live Courier Tracking Card ── */}
+        {(order.trackingNumber || ["Shipped", "Out for Delivery", "Delivered"].includes(order.status)) && (
+          <div className="bg-gradient-to-br from-cyan-50/70 via-white to-primary-50/40 rounded-2xl border border-cyan-200/80 shadow-sm p-5 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-cyan-600 text-white flex items-center justify-center shadow-sm">
+                  <FiTruck className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-outfit font-bold text-gray-900 text-base">Shipment Tracking</h2>
+                    <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-800">
+                      {order.courierName || "Express Courier"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    {order.shippedAt
+                      ? `Dispatched on ${new Date(order.shippedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
+                      : "Handed over to courier partner for express delivery"}
+                  </p>
+                </div>
+              </div>
+
+              {order.trackingNumber && (
+                <a
+                  href={getTrackingUrl(order.courierName, order.trackingNumber, order.trackingUrl)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-cyan-600 text-white text-xs font-bold rounded-xl hover:bg-cyan-700 transition-colors shadow-sm"
+                >
+                  <span>Track on Courier Site</span>
+                  <FiExternalLink className="w-3.5 h-3.5" />
+                </a>
+              )}
+            </div>
+
+            {order.trackingNumber ? (
+              <div className="bg-white rounded-xl border border-gray-200/80 p-3.5 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block">AWB / Waybill Number</span>
+                  <span className="font-mono font-bold text-gray-900 text-sm sm:text-base tracking-wide">{order.trackingNumber}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => copyAwb(order.trackingNumber)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 active:scale-95 transition-all"
+                >
+                  {copiedAwb ? (
+                    <>
+                      <FiCheck className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="text-emerald-700">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiCopy className="w-3.5 h-3.5 text-gray-500" />
+                      <span>Copy AWB</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            ) : (
+              <div className="bg-white/80 rounded-xl p-3 border border-dashed border-cyan-200 text-xs text-gray-600">
+                📦 Your parcel is packed and AWB number will be updated within 2–4 hours of courier scan.
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Shipping & Payment ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -466,9 +575,14 @@ export default function OrderDetails() {
               </button>
             ) : (
               <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                <p className="text-sm font-semibold text-red-800 mb-3">
+                <p className="text-sm font-semibold text-red-800 mb-2">
                   Are you sure you want to cancel this order? This action cannot be undone.
                 </p>
+                {order.isPaid && (
+                  <p className="text-xs text-red-700 bg-red-100/60 p-2.5 rounded-lg mb-3">
+                    ℹ️ Since you have paid online, a full refund of <strong>₹{order.totalPrice?.toLocaleString("en-IN")}</strong> will be initiated to your original payment source (UPI/Card) within 24 hours.
+                  </p>
+                )}
                 <div className="flex gap-3">
                   <button
                     onClick={handleCancelOrder}

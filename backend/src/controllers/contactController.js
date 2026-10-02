@@ -1,132 +1,67 @@
-import nodemailer from "nodemailer";
+import asyncHandler from "../utils/asyncHandler.js";
+import { sendContactFormEmail, emailConfigured } from "../utils/emailService.js";
+import { asString, asEmail, asObject } from "../utils/input.js";
+import { lookupPincode } from "../utils/pincode.js";
 
-// @desc Send contact form email
-// @route POST /api/contact/send
-// @access Public
-export const sendContactEmail = async (req, res) => {
-  try {
-    const { name, email, subject, message } = req.body;
+/**
+ * Contact form.
+ *
+ * The previous version had its own nodemailer transport built from
+ * EMAIL_HOST / EMAIL_PORT / ADMIN_RECEIVER_EMAIL — variables that were never
+ * documented in .env.example, so the form 500'd on a fresh install. It also
+ * called `transporter.verify()` on every request (a slow DoS amplifier) and
+ * interpolated `name`, `subject` and `message` straight into HTML — so anyone
+ * who submitted the public form could inject markup into the business owner's
+ * mail client. Everything now goes through the shared, HTML-escaped email
+ * service.
+ */
+export const sendContactEmail = asyncHandler(async (req, res) => {
+  const b = asObject(req.body, "request");
+  const name = asString(b.name, "name", { max: 120 });
+  const email = asEmail(b.email);
+  const subject = asString(b.subject, "subject", { max: 200 });
+  const message = asString(b.message, "message", { max: 5000 });
 
-    // Validate input
-    if (!name || !email || !subject || !message) {
-      return res.status(400).json({
-        success: false,
-        message: "All fields are required",
-      });
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid email format",
-      });
-    }
-
-    // Check if email configuration exists
-    if (
-      !process.env.EMAIL_HOST ||
-      !process.env.EMAIL_PORT ||
-      !process.env.EMAIL_USER ||
-      !process.env.EMAIL_PASS ||
-      !process.env.ADMIN_RECEIVER_EMAIL
-    ) {
-      console.error("Email configuration missing in environment variables");
-      return res.status(500).json({
-        success: false,
-        message: "Email service is not configured. Please contact the administrator.",
-      });
-    }
-
-    // Create transporter
-    const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST,
-      port: parseInt(process.env.EMAIL_PORT, 10),
-      secure: process.env.EMAIL_PORT === "465", // true for 465, false for other ports
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
-
-    // Verify transporter configuration
-    await transporter.verify();
-
-    // Email content
-    const mailOptions = {
-      from: `"RK Saree Center Contact Form" <${process.env.EMAIL_USER}>`,
-      to: process.env.ADMIN_RECEIVER_EMAIL,
-      replyTo: email,
-      subject: `Contact Form: ${subject}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
-          <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h2 style="color: #7c3aed; margin-top: 0;">New Contact Form Submission</h2>
-            <div style="margin-top: 20px;">
-              <p style="margin: 10px 0;"><strong style="color: #374151;">Name:</strong> <span style="color: #6b7280;">${name}</span></p>
-              <p style="margin: 10px 0;"><strong style="color: #374151;">Email:</strong> <span style="color: #6b7280;">${email}</span></p>
-              <p style="margin: 10px 0;"><strong style="color: #374151;">Subject:</strong> <span style="color: #6b7280;">${subject}</span></p>
-            </div>
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
-              <p style="margin: 10px 0;"><strong style="color: #374151;">Message:</strong></p>
-              <div style="background-color: #f3f4f6; padding: 15px; border-radius: 6px; margin-top: 10px;">
-                <p style="color: #4b5563; white-space: pre-wrap; margin: 0;">${message}</p>
-              </div>
-            </div>
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e5e7eb; text-align: center;">
-              <p style="color: #9ca3af; font-size: 12px; margin: 0;">
-                This email was sent from the RK Saree Center & Fashion Store contact form.
-              </p>
-            </div>
-          </div>
-        </div>
-      `,
-      text: `
-New Contact Form Submission
-
-Name: ${name}
-Email: ${email}
-Subject: ${subject}
-
-Message:
-${message}
-
----
-This email was sent from the RK Saree Center & Fashion Store contact form.
-      `,
-    };
-
-    // Send email
-    const info = await transporter.sendMail(mailOptions);
-
-    res.status(200).json({
-      success: true,
-      message: "Your message has been sent successfully. We'll get back to you soon!",
-      messageId: info.messageId,
-    });
-  } catch (error) {
-    console.error("Error sending email:", error);
-
-    // Handle specific error cases
-    if (error.code === "EAUTH") {
-      return res.status(500).json({
-        success: false,
-        message: "Email authentication failed. Please contact the administrator.",
-      });
-    }
-
-    if (error.code === "ECONNECTION" || error.code === "ETIMEDOUT") {
-      return res.status(500).json({
-        success: false,
-        message: "Unable to connect to email server. Please try again later.",
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to send email. Please try again later.",
-    });
+  if (!name || !email || !subject || !message) {
+    res.status(400);
+    throw new Error("Please fill in every field");
   }
-};
+  if (message.length < 10) {
+    res.status(400);
+    throw new Error("Please add a little more detail so we can help");
+  }
 
+  if (!emailConfigured()) {
+    // Don't pretend to have accepted a message we can't deliver. Offer the
+    // alternative channel the customer can actually use.
+    res.status(503);
+    throw new Error(
+      "Messaging is temporarily unavailable. Please WhatsApp or call us and we'll help right away."
+    );
+  }
+
+  const sent = await sendContactFormEmail({ name, email, subject, message });
+
+  if (!sent) {
+    res.status(503);
+    throw new Error("We couldn't send that just now. Please try again, or WhatsApp us.");
+  }
+
+  res.json({
+    success: true,
+    message: "Thanks for getting in touch — we've emailed you a copy and will reply within one working day.",
+  });
+});
+
+/**
+ * PIN-code serviceability check, used by the checkout form to validate the
+ * address before the customer commits to an order.
+ *
+ * @route POST /api/contact/check-pincode
+ * @access Public
+ */
+export const checkPincode = asyncHandler(async (req, res) => {
+  const pin = asString(req.body?.pincode, "PIN code", { max: 6 });
+  const result = await lookupPincode(pin);
+  res.json(result);
+});

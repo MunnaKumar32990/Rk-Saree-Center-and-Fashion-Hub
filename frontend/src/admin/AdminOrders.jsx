@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import AdminLayout from "./AdminLayout";
@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import {
   FiSearch, FiRefreshCw, FiDownload, FiFilter,
   FiCheckSquare, FiX, FiChevronLeft, FiChevronRight,
-  FiPackage, FiDollarSign, FiClock, FiXCircle
+  FiPackage, FiDollarSign, FiClock, FiXCircle, FiPrinter
 } from "react-icons/fi";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -50,7 +50,6 @@ const AdminOrders = () => {
   const [orders, setOrders] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(null);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -72,6 +71,10 @@ const AdminOrders = () => {
   const [selected, setSelected] = useState([]);
   const [bulkStatus, setBulkStatus] = useState("");
   const [bulkLoading, setBulkLoading] = useState(false);
+
+  // Dispatch Manifest
+  const [showManifest, setShowManifest] = useState(false);
+  const [manifestCourier, setManifestCourier] = useState("All");
 
   // ─── Fetch ──────────────────────────────────────────────────────────────────
   const fetchOrders = useCallback(async (p = page) => {
@@ -107,7 +110,17 @@ const AdminOrders = () => {
     } catch { /* silent */ }
   };
 
-  useEffect(() => { fetchOrders(1); setPage(1); }, [limit, filterStatus, filterPayment, dateFrom, dateTo, minPrice, maxPrice]);
+  // fetchOrders is recreated whenever `search` or `page` changes, but the effect
+  // below must only fire for the filter inputs: search is applied on submit
+  // (not on every keystroke) and page is driven by goToPage. Reading the latest
+  // callback through a ref keeps the closure fresh without widening the
+  // dependency array and re-fetching on each keystroke.
+  const fetchOrdersRef = useRef(fetchOrders);
+  useEffect(() => {
+    fetchOrdersRef.current = fetchOrders;
+  }, [fetchOrders]);
+
+  useEffect(() => { fetchOrdersRef.current(1); setPage(1); }, [limit, filterStatus, filterPayment, dateFrom, dateTo, minPrice, maxPrice]);
   useEffect(() => { fetchStats(); }, []);
 
   const handleSearch = (e) => {
@@ -154,11 +167,10 @@ const AdminOrders = () => {
         ...(minPrice && { minPrice }),
         ...(maxPrice && { maxPrice }),
       });
-      const userInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
-      const res = await fetch(`/api/orders/export-csv?${params}`, {
-        headers: { Authorization: `Bearer ${userInfo.token}` },
+      const res = await api.get(`/orders/export-csv?${params}`, {
+        responseType: "blob",
       });
-      const blob = await res.blob();
+      const blob = new Blob([res.data], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -195,6 +207,13 @@ const AdminOrders = () => {
             <p className="text-sm text-gray-500 mt-0.5">{total} total orders</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setShowManifest(true)}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm"
+              title="Generate printable courier dispatch manifest"
+            >
+              <FiPrinter className="w-4 h-4" /> Courier Manifest {selected.length > 0 && `(${selected.length})`}
+            </button>
             <button onClick={exportCSV}
               className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-all">
               <FiDownload className="w-4 h-4" /> Export CSV
@@ -343,13 +362,14 @@ const AdminOrders = () => {
                     <th className="p-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Items</th>
                     <th className="p-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Total</th>
                     <th className="p-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Payment</th>
+                    <th className="p-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">RTO Risk</th>
                     <th className="p-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {orders.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="p-16 text-center text-gray-400">
+                      <td colSpan="8" className="p-16 text-center text-gray-400">
                         <p className="text-4xl mb-3">📦</p>
                         <p>No orders found.</p>
                         {hasFilters && (
@@ -427,6 +447,30 @@ const AdminOrders = () => {
                               </div>
                             )}
                           </td>
+                          <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
+                            {order.rtoRisk?.level === "HIGH" ? (
+                              <span
+                                className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-red-100 text-red-700 border border-red-200"
+                                title={order.rtoRisk.reasons?.join(" • ")}
+                              >
+                                ⚠️ High Risk
+                              </span>
+                            ) : order.rtoRisk?.level === "MEDIUM" ? (
+                              <span
+                                className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-200"
+                                title={order.rtoRisk.reasons?.join(" • ")}
+                              >
+                                ⚡ Medium
+                              </span>
+                            ) : (
+                              <span
+                                className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700"
+                                title={order.rtoRisk?.reasons?.join(" • ") || "Safe"}
+                              >
+                                ✓ Low
+                              </span>
+                            )}
+                          </td>
                           <td className="p-4 text-center">
                             <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${cfg.color}`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
@@ -481,6 +525,238 @@ const AdminOrders = () => {
             </div>
           </div>
         )}
+
+        {/* ── Courier Dispatch Manifest Modal ── */}
+        {showManifest && (() => {
+          const candidateOrders = selected.length > 0
+            ? orders.filter((o) => selected.includes(o._id))
+            : orders.filter((o) => ["Packed", "Shipped", "Confirmed"].includes(o.status));
+          const list = candidateOrders.length > 0 ? candidateOrders : orders;
+          const filteredList = manifestCourier === "All"
+            ? list
+            : list.filter((o) => (o.courierName || "Unassigned").toLowerCase().includes(manifestCourier.toLowerCase()));
+          const totalCodAmount = filteredList
+            .filter((o) => o.paymentMethod === "COD")
+            .reduce((acc, o) => acc + (Number(o.totalPrice) || 0), 0);
+          const codCount = filteredList.filter((o) => o.paymentMethod === "COD").length;
+          const prepaidCount = filteredList.length - codCount;
+          const dateStr = new Date().toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          });
+          const timeStr = new Date().toLocaleTimeString("en-IN", {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+          return (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-fade-in">
+              <style>{`
+                @media print {
+                  body * { visibility: hidden !important; }
+                  #manifest-print-sheet, #manifest-print-sheet * { visibility: visible !important; }
+                  #manifest-print-sheet {
+                    position: absolute !important;
+                    left: 0 !important;
+                    top: 0 !important;
+                    width: 100% !important;
+                    margin: 0 !important;
+                    padding: 12px !important;
+                    background: white !important;
+                    box-shadow: none !important;
+                    border: none !important;
+                  }
+                  .no-print { display: none !important; }
+                }
+              `}</style>
+              <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-gray-200">
+                {/* Modal Toolbar (hidden on print) */}
+                <div className="no-print p-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-2">
+                    <FiPrinter className="w-5 h-5 text-indigo-600" />
+                    <h3 className="font-outfit font-bold text-gray-900 text-base">
+                      Daily Courier Dispatch &amp; Handover Manifest
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                      <span>Courier:</span>
+                      <select
+                        value={manifestCourier}
+                        onChange={(e) => setManifestCourier(e.target.value)}
+                        className="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold"
+                      >
+                        <option value="All">All Couriers ({list.length})</option>
+                        <option value="Delhivery">Delhivery</option>
+                        <option value="Blue Dart">Blue Dart</option>
+                        <option value="DTDC">DTDC</option>
+                        <option value="India Post">India Post (Speed Post)</option>
+                        <option value="Ekart">Ekart</option>
+                        <option value="Shiprocket">Shiprocket</option>
+                      </select>
+                    </div>
+                    <button
+                      onClick={() => window.print()}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 shadow-sm transition-all"
+                    >
+                      <FiPrinter className="w-4 h-4" /> Print Sheet (A4)
+                    </button>
+                    <button
+                      onClick={() => setShowManifest(false)}
+                      className="p-2 text-gray-500 hover:text-gray-800 rounded-lg"
+                      aria-label="Close manifest"
+                    >
+                      <FiX className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Printable Manifest Sheet */}
+                <div id="manifest-print-sheet" className="p-6 sm:p-8 overflow-y-auto flex-1 text-gray-900">
+                  {/* Business Header */}
+                  <div className="border-b-2 border-gray-900 pb-4 mb-4 flex justify-between items-start gap-4">
+                    <div>
+                      <h1 className="font-outfit font-black text-2xl tracking-wide uppercase text-gray-900">
+                        RK Saree Center &amp; Fashion Hub
+                      </h1>
+                      <p className="text-xs text-gray-600 font-medium mt-0.5">
+                        Main Market, Ramgarhwa, Motihari, Bihar – 845433 | Contact: +91 97087 56854
+                      </p>
+                      <p className="text-xs font-bold text-indigo-700 tracking-wider uppercase mt-1">
+                        Daily Outbound Shipment Dispatch Manifest
+                      </p>
+                    </div>
+                    <div className="text-right text-xs">
+                      <p className="font-mono text-gray-500 font-bold">DATE: {dateStr}</p>
+                      <p className="font-mono text-gray-500">TIME: {timeStr}</p>
+                      <p className="font-mono text-[11px] text-gray-400 mt-1">
+                        REF: RK-MAN-{Date.now().toString(36).toUpperCase()}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Summary Metric Chips */}
+                  <div className="grid grid-cols-4 gap-3 bg-gray-50 border border-gray-200 rounded-xl p-3 mb-5 text-center text-xs">
+                    <div>
+                      <span className="text-gray-500 block text-[11px]">Total Shipments</span>
+                      <span className="font-outfit font-black text-base text-gray-900">
+                        {filteredList.length} Pkgs
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 block text-[11px]">Prepaid Orders</span>
+                      <span className="font-outfit font-bold text-base text-emerald-700">
+                        {prepaidCount}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 block text-[11px]">COD Shipments</span>
+                      <span className="font-outfit font-bold text-base text-amber-700">
+                        {codCount}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 block text-[11px]">Total COD to Collect</span>
+                      <span className="font-outfit font-black text-base text-gray-900">
+                        ₹{totalCodAmount.toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Shipments Table */}
+                  <table className="w-full text-left border-collapse text-xs border border-gray-300">
+                    <thead>
+                      <tr className="bg-gray-100 border-b border-gray-300 text-gray-700 font-bold">
+                        <th className="p-2 border-r border-gray-300 w-10 text-center">#</th>
+                        <th className="p-2 border-r border-gray-300">Order ID</th>
+                        <th className="p-2 border-r border-gray-300">Recipient Details</th>
+                        <th className="p-2 border-r border-gray-300">Destination</th>
+                        <th className="p-2 border-r border-gray-300">Courier / AWB</th>
+                        <th className="p-2 border-r border-gray-300 text-center">Payment</th>
+                        <th className="p-2 text-right">Collect (₹)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {filteredList.map((order, idx) => {
+                        const isCod = order.paymentMethod === "COD";
+                        return (
+                          <tr key={order._id} className="hover:bg-gray-50/50">
+                            <td className="p-2 border-r border-gray-200 text-center font-mono text-[11px] text-gray-500">
+                              {idx + 1}
+                            </td>
+                            <td className="p-2 border-r border-gray-200 font-mono font-bold text-gray-900 text-[11px]">
+                              {order.orderNumber || `#${order._id.slice(-8).toUpperCase()}`}
+                            </td>
+                            <td className="p-2 border-r border-gray-200">
+                              <p className="font-bold text-gray-900">{order.shippingAddress?.fullName || order.user?.name || "Customer"}</p>
+                              <p className="text-[11px] text-gray-500 font-mono">
+                                📞 {order.shippingAddress?.phone || order.user?.phone || "—"}
+                              </p>
+                            </td>
+                            <td className="p-2 border-r border-gray-200">
+                              <p className="text-gray-900 font-medium">
+                                {order.shippingAddress?.city || "—"}, {order.shippingAddress?.state || "—"}
+                              </p>
+                              <p className="text-[11px] text-gray-500 font-mono">
+                                PIN: {order.shippingAddress?.postalCode || "—"}
+                              </p>
+                            </td>
+                            <td className="p-2 border-r border-gray-200">
+                              <p className="font-semibold text-gray-800">{order.courierName || "Standard"}</p>
+                              <p className="font-mono text-[11px] text-gray-600">
+                                {order.trackingNumber || "AWB Pending"}
+                              </p>
+                            </td>
+                            <td className="p-2 border-r border-gray-200 text-center">
+                              <span
+                                className={`px-2 py-0.5 rounded font-bold text-[10px] ${
+                                  isCod ? "bg-amber-100 text-amber-900" : "bg-emerald-100 text-emerald-900"
+                                }`}
+                              >
+                                {isCod ? "COD" : "PREPAID"}
+                              </span>
+                            </td>
+                            <td className="p-2 text-right font-mono font-bold text-gray-900">
+                              {isCod ? `₹${(order.totalPrice || 0).toLocaleString("en-IN")}` : "₹0 (Paid)"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+
+                  {/* Sign-off Handover Box */}
+                  <div className="mt-8 pt-4 border-t-2 border-gray-400 grid grid-cols-2 gap-8 text-xs">
+                    <div className="border border-gray-300 rounded-xl p-4">
+                      <p className="font-bold text-gray-900 uppercase tracking-wider mb-8">
+                        1. Handed Over By (RK Saree Center Staff)
+                      </p>
+                      <div className="space-y-1 text-gray-600 text-[11px]">
+                        <p>Staff Name: ____________________________________</p>
+                        <p>Date &amp; Time: ____________________________________</p>
+                        <p className="pt-2">Signature: ____________________________________</p>
+                      </div>
+                    </div>
+                    <div className="border border-gray-300 rounded-xl p-4">
+                      <p className="font-bold text-gray-900 uppercase tracking-wider mb-8">
+                        2. Received By (Courier Pickup Rider)
+                      </p>
+                      <div className="space-y-1 text-gray-600 text-[11px]">
+                        <p>Courier Partner / Hub: ___________________________</p>
+                        <p>Rider Name &amp; Phone: ___________________________</p>
+                        <p className="pt-2">Rider Signature: _________________________________</p>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-center text-gray-400 mt-4">
+                    Generated via RK Saree Center Merchant Portal • This document serves as legal handover proof of outbound commercial shipments.
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
       </div>
     </AdminLayout>

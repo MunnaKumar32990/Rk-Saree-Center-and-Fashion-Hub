@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../services/api";
 import AdminLayout from "./AdminLayout";
+import ProductSpecsEditor from "../components/ProductSpecsEditor";
 import toast from "react-hot-toast";
 import { FiUpload, FiX, FiImage } from "react-icons/fi";
 
@@ -16,7 +17,6 @@ const CATEGORIES = Object.keys(CATEGORY_SUBCATEGORY);
 const ImageUpload = ({ label, value, onChange, multiple = false }) => {
   const inputRef = useRef();
   const [uploading, setUploading] = useState(false);
-  const userInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
 
   const handleFile = async (files) => {
     if (!files.length) return;
@@ -28,7 +28,6 @@ const ImageUpload = ({ label, value, onChange, multiple = false }) => {
         const { data } = await api.post("/upload/multiple", formData, {
           headers: {
             "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${userInfo.token}`,
           },
         });
         onChange([...(Array.isArray(value) ? value : []), ...data.urls.map((u) => u.url)]);
@@ -37,7 +36,6 @@ const ImageUpload = ({ label, value, onChange, multiple = false }) => {
         const { data } = await api.post("/upload", formData, {
           headers: {
             "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${userInfo.token}`,
           },
         });
         onChange(data.url);
@@ -101,7 +99,6 @@ const ImageUpload = ({ label, value, onChange, multiple = false }) => {
 const AdminEditProduct = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const userInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
 
   const [name, setName] = useState("");
   const [image, setImage] = useState("");
@@ -111,20 +108,27 @@ const AdminEditProduct = () => {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [countInStock, setCountInStock] = useState("");
+  const [lowStockThreshold, setLowStockThreshold] = useState("3");
   const [sizes, setSizes] = useState([]);
   const [colors, setColors] = useState("");
   const [sku, setSku] = useState("");
   const [discount, setDiscount] = useState("");
   const [isFeatured, setIsFeatured] = useState(false);
+  const [tags, setTags] = useState("");
+  const [specs, setSpecs] = useState({});
+  const [waiting, setWaiting] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
     const fetchProduct = async () => {
       try {
         setLoading(true);
         const { data } = await api.get(`/products/${id}`);
+        if (cancelled) return;
         setName(data.name);
         setImage(data.image || "");
         setImages(data.images || []);
@@ -133,18 +137,31 @@ const AdminEditProduct = () => {
         setDescription(data.description || "");
         setPrice(data.price);
         setCountInStock(data.countInStock);
+        setLowStockThreshold(data.lowStockThreshold ?? 3);
         setSizes(data.sizes || []);
         setColors(data.colors?.join(", ") || "");
         setSku(data.sku || "");
         setDiscount(data.discount || "");
         setIsFeatured(data.isFeatured || false);
+        setTags((data.tags || []).join(", "));
+        setSpecs(data.specs || {});
       } catch {
-        setError("Failed to load product");
+        if (!cancelled) setError("Couldn't load this product");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     fetchProduct();
+
+    // Who is waiting for this to come back. These are real customers whose
+    // emails fire the moment stock is replenished.
+    api
+      .get(`/products/${id}/restock-subscribers`)
+      .then(({ data }) => !cancelled && setWaiting(data.waiting || []))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   const salePrice = price && discount
@@ -153,28 +170,54 @@ const AdminEditProduct = () => {
 
   const submitHandler = async (e) => {
     e.preventDefault();
-    if (!image) return toast.error("Please upload a main product image");
+    if (!image) {
+      toast.error("Please upload a main product image");
+      return;
+    }
+    if (subcategory === "Sarees" && !specs.lengthMeters) {
+      setFieldErrors({ lengthMeters: true });
+      toast.error("A saree needs a stated length");
+      return;
+    }
+    setFieldErrors({});
     setError("");
     setSaving(true);
+
     try {
-      await api.put(
-        `/products/${id}`,
-        {
-          name, image,
-          images: images.length ? images : [image],
-          category, subcategory, description,
-          price: Number(price),
-          countInStock: Number(countInStock),
-          sizes: sizes,
-          colors: colors ? colors.split(",").map((c) => c.trim()).filter(Boolean) : [],
-          sku, discount: Number(discount) || 0, isFeatured,
-        },
-        { headers: { Authorization: `Bearer ${userInfo.token}` } }
-      );
-      toast.success("Product updated!");
+      const previousStock = Number(countInStock);
+      await api.put(`/products/${id}`, {
+        name: name.trim(),
+        image,
+        images: images.length ? images : [image],
+        category,
+        subcategory,
+        description: description.trim(),
+        price: Number(price),
+        countInStock: Number(countInStock),
+        lowStockThreshold: Number(lowStockThreshold) || 3,
+        sizes,
+        colors: colors ? colors.split(",").map((c) => c.trim()).filter(Boolean) : [],
+        sku: sku.trim() || undefined,
+        discount: Number(discount) || 0,
+        isFeatured,
+        tags: tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
+        specs,
+      });
+
+      if (previousStock <= 0 && Number(countInStock) > 0 && waiting.length > 0) {
+        toast.success(
+          `Product updated — ${waiting.length} back-in-stock alert${waiting.length === 1 ? "" : "s"} emailed out`,
+          { duration: 6000, icon: "🔔" }
+        );
+      } else {
+        toast.success("Product updated");
+      }
       navigate("/admin/products");
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to update product");
+      const message =
+        err.response?.data?.message || err.friendlyMessage || "Failed to update product";
+      setError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -293,7 +336,41 @@ const AdminEditProduct = () => {
                   className="w-4 h-4 rounded accent-primary-600" />
                 <span className="text-sm font-semibold text-gray-700">Feature on Home page</span>
               </label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="edit-low-stock" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Low-stock alert at
+                  </label>
+                  <input
+                    id="edit-low-stock"
+                    type="number"
+                    min="0"
+                    value={lowStockThreshold}
+                    onChange={(e) => setLowStockThreshold(e.target.value)}
+                    className="w-full border border-gray-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-400 text-sm min-h-[44px]"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="edit-tags" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Search tags
+                  </label>
+                  <input
+                    id="edit-tags"
+                    value={tags}
+                    onChange={(e) => setTags(e.target.value)}
+                    placeholder="silk, wedding, handloom"
+                    className="w-full border border-gray-200 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-400 text-sm min-h-[44px]"
+                  />
+                </div>
+              </div>
             </div>
+
+            <ProductSpecsEditor
+              subcategory={subcategory}
+              value={specs}
+              onChange={setSpecs}
+              errors={fieldErrors}
+            />
           </div>
           {/* ── Right ── */}
           <div className="space-y-5">
@@ -302,13 +379,56 @@ const AdminEditProduct = () => {
               <ImageUpload label="Main Image *" value={image} onChange={setImage} />
               <ImageUpload label="Additional Images" value={images} onChange={setImages} multiple />
             </div>
+
+            {/* Back-in-stock waitlist. These are real customers who asked to be
+                told when this came back — the moment stock goes above 0 they
+                are emailed automatically, so replenishing here is what converts
+                an out-of-stock listing back into sales. */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <h2 className="font-semibold text-gray-900 border-b border-gray-100 pb-3 flex items-center gap-2">
+                <span aria-hidden="true">🔔</span>
+                Back-in-stock waitlist
+                <span className="ml-auto text-xs bg-primary-100 text-primary-700 font-bold px-2 py-0.5 rounded-full">
+                  {waiting.length}
+                </span>
+              </h2>
+
+              {Number(countInStock) > 0 ? (
+                <p className="text-sm text-gray-600 mt-3">
+                  This item is in stock. Anyone waiting will be emailed the moment you
+                  save — or has already been notified if it was previously zero.
+                </p>
+              ) : waiting.length === 0 ? (
+                <p className="text-sm text-gray-600 mt-3">
+                  No one is waiting on this item right now.
+                </p>
+              ) : (
+                <>
+                  <p className="text-xs text-gray-500 mt-3 mb-2">
+                    Set stock above 0 and save — every address below gets an email
+                    immediately.
+                  </p>
+                  <ul className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {waiting.map((w, i) => (
+                      <li key={`${w.email}-${i}`} className="flex items-center justify-between gap-2 text-xs">
+                        <span className="truncate text-gray-700">{w.email}</span>
+                        <span className="text-gray-400 shrink-0">
+                          {w.since ? new Date(w.since).toLocaleDateString("en-IN") : ""}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+
             <div className="flex flex-col gap-3">
               <button type="submit" disabled={saving}
-                className="w-full bg-primary-600 hover:bg-primary-700 text-white py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-50 shadow-md">
-                {saving ? "Saving..." : "Save Changes"}
+                className="w-full bg-primary-600 hover:bg-primary-700 text-white py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-50 shadow-md min-h-[48px] focus:outline-none focus-visible:ring-4 focus-visible:ring-primary-300">
+                {saving ? "Saving…" : "Save changes"}
               </button>
               <button type="button" onClick={() => navigate("/admin/products")}
-                className="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold text-sm hover:bg-gray-200 transition-all border border-gray-200">
+                className="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold text-sm hover:bg-gray-200 transition-all border border-gray-200 min-h-[48px]">
                 Cancel
               </button>
             </div>

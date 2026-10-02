@@ -1,52 +1,155 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-IN">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 
-    <!-- ── Favicon ─────────────────────────────────────── -->
+    <!-- ── Icons ────────────────────────────────────────────────── -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192.png" />
+    <link rel="mask-icon" href="/favicon.svg" color="#0F766E" />
 
-    <!-- ── PWA Manifest ──────────────────────────────────── -->
+    <!-- ── PWA ──────────────────────────────────────────────────── -->
     <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0F766E" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="RK Saree" />
+    <meta name="mobile-web-app-capable" content="yes" />
 
-    <!-- ── Viewport ────────────────────────────────────── -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- ── Primary SEO ──────────────────────────────────────────── -->
+    <title>RK Saree Center &amp; Fashion Hub — Buy Sarees &amp; Ethnic Wear Online</title>
+    <meta
+      name="description"
+      content="Shop sarees, kurtis and ethnic wear for women, men and kids. Blouse-piece details and exact measurements on every listing. Cash on Delivery, free delivery over ₹2,000, 7-day returns."
+    />
+    <meta
+      name="keywords"
+      content="buy saree online, saree with blouse piece, banarasi saree, kanjivaram saree, silk saree, kurti online, ethnic wear India, cash on delivery saree, handloom saree, saree under 3000"
+    />
+    <meta name="author" content="RK Saree Center &amp; Fashion Hub" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="geo.region" content="IN-BR" />
+    <meta name="geo.placename" content="Yogapatti, Bihar, India" />
+    <link rel="canonical" href="https://rksareefashionhub.com/" />
 
-    <!-- ── Primary SEO ─────────────────────────────────── -->
-    <title>RK Saree &amp; Fashion Hub — Premium Sarees, Ethnic Wear &amp; Fashion Online</title>
-    <meta name="description" content="Shop the finest sarees, lehengas, kurtis, ethnic wear for men, women &amp; kids at RK Saree &amp; Fashion Hub. Free delivery above ₹2,000. Easy 7-day returns. Secure Razorpay checkout." />
-    <meta name="keywords" content="saree online, buy saree, lehenga, kurtis, ethnic wear, Indian fashion, RK Saree, Bihar saree shop" />
-    <meta name="author" content="RK Saree &amp; Fashion Hub" />
-    <meta name="theme-color" content="#7c3aed" />
-
-    <!-- ── Open Graph (Facebook / WhatsApp sharing) ────── -->
+    <!-- ── Open Graph — this is what WhatsApp and Facebook render ── -->
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="RK Saree &amp; Fashion Hub" />
-    <meta property="og:title" content="RK Saree &amp; Fashion Hub — Premium Indian Fashion Online" />
-    <meta property="og:description" content="Discover exquisite sarees, lehengas, kurtis & ethnic wear. Free delivery above ₹2,000. Shop now at RK Saree Fashion Hub." />
-    <meta property="og:image" content="/og-image.png" />
-    <meta property="og:url" content="https://rksareefashionhub.com" />
+    <meta property="og:site_name" content="RK Saree Center &amp; Fashion Hub" />
+    <meta property="og:title" content="RK Saree Center &amp; Fashion Hub — Sarees &amp; Ethnic Wear" />
+    <meta
+      property="og:description"
+      content="Sarees, kurtis and ethnic wear with blouse-piece details and exact measurements on every listing. Cash on Delivery across India, free delivery over ₹2,000, 7-day returns."
+    />
+    <meta property="og:image" content="https://rksareefashionhub.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="RK Saree Center and Fashion Hub" />
+    <meta property="og:url" content="https://rksareefashionhub.com/" />
     <meta property="og:locale" content="en_IN" />
 
-    <!-- ── Twitter Card ─────────────────────────────────── -->
+    <!-- ── Twitter / X ──────────────────────────────────────────── -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="RK Saree &amp; Fashion Hub" />
-    <meta name="twitter:description" content="Premium sarees, lehengas & ethnic wear online. Free delivery above ₹2,000." />
-    <meta name="twitter:image" content="/og-image.png" />
+    <meta name="twitter:title" content="RK Saree Center &amp; Fashion Hub" />
+    <meta
+      name="twitter:description"
+      content="Sarees &amp; ethnic wear with Cash on Delivery and 7-day returns."
+    />
+    <meta name="twitter:image" content="https://rksareefashionhub.com/og-image.png" />
 
-    <!-- ── Canonical ────────────────────────────────────── -->
-    <link rel="canonical" href="https://rksareefashionhub.com" />
-
-    <!-- ── Robots ───────────────────────────────────────── -->
-    <meta name="robots" content="index, follow" />
-
-    <!-- ── Preconnect for Google Fonts (already loaded in CSS) ── -->
+    <!-- ── Fonts ──────────────────────────────────────────────────
+         Non-render-blocking. The original loaded Google Fonts via a CSS
+         @import, which serialises: HTML → CSS → font request → text paint.
+         This preloads the stylesheet and the two fonts used above the fold,
+         which is the single biggest win in perceived load time for a
+         text-heavy storefront on a 4G phone. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap"
+      />
+    </noscript>
+
+    <!-- ── Organisation structured data ───────────────────────────
+         Declared statically here rather than only in React so crawlers see it
+         on the initial HTML response. `Seo.jsx` overrides the per-page tags. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Store",
+        "@id": "https://rksareefashionhub.com/#store",
+        "name": "RK Saree Center & Fashion Hub",
+        "url": "https://rksareefashionhub.com/",
+        "logo": "https://rksareefashionhub.com/logo.png",
+        "image": "https://rksareefashionhub.com/og-image.png",
+        "description": "Sarees, kurtis and ethnic wear for women, men and kids. Cash on Delivery across India, free delivery over ₹2,000, and 7-day returns.",
+        "email": "rksareecenter32@gmail.com",
+        "telephone": "+91-97087-56854",
+        "currenciesAccepted": "INR",
+        "paymentAccepted": "Cash on Delivery, UPI, Credit Card, Debit Card, Net Banking, Wallet",
+        "areaServed": { "@type": "Country", "name": "India" },
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "Yogapatti Main Road",
+          "addressLocality": "Yogapatti",
+          "addressRegion": "Bihar",
+          "postalCode": "845452",
+          "addressCountry": "IN"
+        },
+        "openingHoursSpecification": {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": [
+            "Monday", "Tuesday", "Wednesday", "Thursday",
+            "Friday", "Saturday", "Sunday"
+          ],
+          "opens": "10:00",
+          "closes": "20:00"
+        },
+        "hasMerchantReturnPolicy": {
+          "@type": "MerchantReturnPolicy",
+          "applicableCountry": "IN",
+          "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
+          "merchantReturnDays": 7,
+          "returnMethod": "https://schema.org/ReturnByMail",
+          "returnFees": "https://schema.org/FreeReturn"
+        },
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://rksareefashionhub.com/search?keyword={search_term_string}"
+          },
+          "query-input": "required name=search_term_string"
+        }
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <div style="font-family: system-ui, sans-serif; padding: 2rem; text-align: center">
+        <h1>JavaScript is required</h1>
+        <p>
+          Please enable JavaScript to shop, or WhatsApp us on
+          <a href="https://wa.me/919708756854">+91 97087 56854</a> and we'll take your
+          order directly.
+        </p>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

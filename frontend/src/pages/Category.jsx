@@ -24,6 +24,8 @@ const Category = () => {
   const subcategory = searchParams.get("sub") || "";
   const size = searchParams.get("size") || "";
   const color = searchParams.get("color") || "";
+  const fabric = searchParams.get("fabric") || "";
+  const occasion = searchParams.get("occasion") || "";
   const rating = searchParams.get("rating") || "";
   const minPrice = searchParams.get("minPrice") || "";
   const maxPrice = searchParams.get("maxPrice") || "";
@@ -41,6 +43,8 @@ const Category = () => {
     subcategory,
     size,
     color,
+    fabric,
+    occasion,
     rating,
     minPrice,
     maxPrice,
@@ -55,6 +59,8 @@ const Category = () => {
         if (categoryName) params.set("category", categoryName);
         if (subcategory) params.set("subcategory", subcategory);
         if (color) params.set("color", color);
+        if (fabric) params.set("fabric", fabric);
+        if (occasion) params.set("occasion", occasion);
         if (size) params.set("size", size);
         if (rating) params.set("rating", rating);
         if (maxPrice) params.set("maxPrice", maxPrice);
@@ -71,7 +77,7 @@ const Category = () => {
       }
     };
     fetchProducts();
-  }, [categoryName, keyword, subcategory, size, color, rating, minPrice, maxPrice, page, sort]);
+  }, [categoryName, keyword, subcategory, size, color, fabric, occasion, rating, minPrice, maxPrice, page, sort]);
 
   const handleFilterChange = (newFilters) => {
     const targetCategory = newFilters.category;
@@ -81,6 +87,8 @@ const Category = () => {
     if (newFilters.subcategory) params.set("sub", newFilters.subcategory);
     if (newFilters.size) params.set("size", newFilters.size);
     if (newFilters.color) params.set("color", newFilters.color);
+    if (newFilters.fabric) params.set("fabric", newFilters.fabric);
+    if (newFilters.occasion) params.set("occasion", newFilters.occasion);
     if (newFilters.rating) params.set("rating", newFilters.rating);
     if (newFilters.minPrice) params.set("minPrice", newFilters.minPrice);
     if (newFilters.maxPrice) params.set("maxPrice", newFilters.maxPrice);
@@ -127,7 +135,26 @@ const Category = () => {
     setSearchParams(params);
   };
 
-  const hasAnyFilter = subcategory || size || color || rating || (maxPrice && maxPrice !== "10000");
+  const hasAnyFilter = subcategory || size || color || fabric || occasion || rating || (maxPrice && maxPrice !== "10000");
+
+  const QUICK_PILLS = [
+    { id: "silk", label: "⚡ Pure Silk", key: "fabric", value: "Silk", isActive: fabric.toLowerCase().includes("silk") },
+    { id: "bridal", label: "👰 Bridal Sarees", key: "occasion", value: "Bridal", isActive: occasion.toLowerCase().includes("bridal") },
+    { id: "under2k", label: "🏷️ Under ₹2,000", key: "maxPrice", value: "2000", isActive: maxPrice === "2000" },
+    { id: "topRated", label: "⭐ Top Rated (4★+)", key: "rating", value: "4", isActive: rating === "4" },
+    { id: "party", label: "✨ Party Wear", key: "occasion", value: "Party Wear", isActive: occasion.toLowerCase().includes("party") },
+    { id: "cotton", label: "🌿 Pure Cotton", key: "fabric", value: "Cotton", isActive: fabric.toLowerCase().includes("cotton") },
+  ];
+
+  const handleTogglePill = (pill) => {
+    const next = { ...filters };
+    if (pill.isActive) {
+      next[pill.key] = "";
+    } else {
+      next[pill.key] = pill.value;
+    }
+    handleFilterChange(next);
+  };
 
   // Dynamic page title
   const pageTitle = keyword
@@ -177,6 +204,27 @@ const Category = () => {
           </aside>
 
           <div className="flex-1 min-w-0">
+            {/* Quick 1-Tap Discovery Pills */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none">
+              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap shrink-0 flex items-center gap-1">
+                <span>⚡</span> Quick:
+              </span>
+              {QUICK_PILLS.map((pill) => (
+                <button
+                  key={pill.id}
+                  onClick={() => handleTogglePill(pill)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition-all active:scale-95 shrink-0 flex items-center gap-1.5 ${
+                    pill.isActive
+                      ? "bg-primary-600 text-white border-primary-600 shadow-sm ring-2 ring-primary-100"
+                      : "bg-white text-gray-700 border-gray-200 hover:border-primary-400 hover:text-primary-600 shadow-xs"
+                  }`}
+                >
+                  <span>{pill.label}</span>
+                  {pill.isActive && <span className="text-[10px] font-bold bg-white/20 rounded-full px-1">✕</span>}
+                </button>
+              ))}
+            </div>
+
             {/* Toolbar */}
             <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
               {/* Mobile filter toggle */}
@@ -237,6 +285,22 @@ const Category = () => {
                   <span className="inline-flex items-center gap-1 px-3 py-1 bg-primary-50 text-primary-700 text-xs font-semibold rounded-full border border-primary-100">
                     Color: {color}
                     <button onClick={() => removeFilter("color")} className="hover:text-primary-900 focus:outline-none ml-1 text-sm font-bold">
+                      &times;
+                    </button>
+                  </span>
+                )}
+                {fabric && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-primary-50 text-primary-700 text-xs font-semibold rounded-full border border-primary-100">
+                    Fabric: {fabric}
+                    <button onClick={() => removeFilter("fabric")} className="hover:text-primary-900 focus:outline-none ml-1 text-sm font-bold">
+                      &times;
+                    </button>
+                  </span>
+                )}
+                {occasion && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-primary-50 text-primary-700 text-xs font-semibold rounded-full border border-primary-100">
+                    Occasion: {occasion}
+                    <button onClick={() => removeFilter("occasion")} className="hover:text-primary-900 focus:outline-none ml-1 text-sm font-bold">
                       &times;
                     </button>
                   </span>

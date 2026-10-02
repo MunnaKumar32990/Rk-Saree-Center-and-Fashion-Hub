@@ -62,15 +62,17 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [monthlyData, setMonthlyData] = useState([]);
   const [recentOrders, setRecentOrders] = useState([]);
+  const [lowStockProducts, setLowStockProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchAll = async () => {
       try {
-        const [statsRes, monthlyRes, ordersRes] = await Promise.all([
+        const [statsRes, monthlyRes, ordersRes, lowStockRes] = await Promise.all([
           api.get("/orders/stats"),
           api.get("/orders/monthly-stats"),
           api.get("/orders?limit=5"),
+          api.get("/products/admin/low-stock?threshold=3").catch(() => ({ data: [] })),
         ]);
         setStats(statsRes.data);
         setMonthlyData(monthlyRes.data || []);
@@ -78,6 +80,7 @@ const AdminDashboard = () => {
         setRecentOrders(
           Array.isArray(ordersData) ? ordersData.slice(0, 5) : (ordersData.orders || []).slice(0, 5)
         );
+        setLowStockProducts(Array.isArray(lowStockRes?.data) ? lowStockRes.data : []);
       } catch (err) {
         console.error("Dashboard fetch error:", err);
       } finally {
@@ -197,6 +200,104 @@ const AdminDashboard = () => {
           </div>
         </div>
 
+        {/* ── Cash-on-Delivery funnel ──────────────────────────────────
+            COD is 40-90% of orders in tier-2/3 India and its RTO rate is the
+            single number that decides whether this business is profitable.
+            Ethnic wear runs 30-45% RTO industry-wide and ~58% in the festive
+            quarter; at ₹180-500 of dead logistics cost per failure against
+            typical saree margins, anything above ~30% RTO is structurally
+            loss-making. The confirmation handshake (WhatsApp COD confirmation)
+            is the intervention with the best documented effect: reported RTO
+            18-25% → 12-17%. */}
+        {stats.cod?.placed > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-card p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+              <div className="flex items-center gap-2.5">
+                <span aria-hidden="true" className="text-xl">💵</span>
+                <div>
+                  <h2 className="font-outfit font-bold text-gray-900">
+                    Cash on Delivery health
+                  </h2>
+                  <p className="text-xs text-gray-500">
+                    {stats.cod.placed} COD order{stats.cod.placed === 1 ? "" : "s"} placed
+                  </p>
+                </div>
+              </div>
+              <span
+                className={`text-xs font-bold px-3 py-1.5 rounded-full ${
+                  stats.cod.rtoRate <= 20
+                    ? "bg-emerald-100 text-emerald-800"
+                    : stats.cod.rtoRate <= 30
+                      ? "bg-amber-100 text-amber-800"
+                      : "bg-red-100 text-red-800"
+                }`}
+              >
+                RTO {stats.cod.rtoRate}%
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                {
+                  label: "Confirmed by customer",
+                  value: `${stats.cod.confirmed}`,
+                  suffix: `(${stats.cod.confirmationRate}%)`,
+                  tone:
+                    stats.cod.confirmationRate >= 45
+                      ? "text-emerald-600"
+                      : stats.cod.confirmationRate >= 25
+                        ? "text-amber-600"
+                        : "text-red-600",
+                  hint: "Above 45% is the healthy benchmark",
+                },
+                {
+                  label: "Awaiting confirmation",
+                  value: `${stats.cod.pending ?? 0}`,
+                  suffix: "",
+                  tone: "text-blue-600",
+                  hint: "Released automatically after 24h",
+                },
+                {
+                  label: "Auto-released (RTO)",
+                  value: `${stats.cod.autoReleased}`,
+                  suffix: `(${stats.cod.rtoRate}%)`,
+                  tone: stats.cod.rtoRate <= 20 ? "text-emerald-600" : "text-red-600",
+                  hint: "Each one cost ₹180–500 in failed delivery",
+                },
+                {
+                  label: "COD revenue collected",
+                  value: `₹${Number(stats.cod.revenue || 0).toLocaleString("en-IN")}`,
+                  suffix: "",
+                  tone: "text-gray-900",
+                  hint: `${stats.cod.orders} delivered COD orders`,
+                },
+              ].map((card) => (
+                <div key={card.label} className="rounded-xl bg-stone-50 p-4">
+                  <p className="text-xs text-stone-500 font-medium mb-1">{card.label}</p>
+                  <p className={`font-outfit font-black text-2xl ${card.tone}`}>
+                    {card.value}{" "}
+                    {card.suffix && (
+                      <span className="text-sm font-bold opacity-70">{card.suffix}</span>
+                    )}
+                  </p>
+                  <p className="text-[11px] text-stone-400 mt-1.5 leading-snug">{card.hint}</p>
+                </div>
+              ))}
+            </div>
+
+            {stats.cod.confirmationRate < 25 && (
+              <p className="mt-4 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-3 leading-relaxed">
+                <strong>Confirmation rate is low.</strong> Confirming COD orders with
+                the customer on WhatsApp within a few minutes of purchase is the
+                single highest-impact thing you can do for RTO. Set
+                <code className="mx-1 px-1 bg-amber-100 rounded">COD_CONFIRM_ENABLED=true</code>{" "}
+                with your WhatsApp Cloud API credentials, or have the warehouse call
+                every order above ₹2,000 before packing.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Monthly Revenue */}
@@ -248,6 +349,75 @@ const AdminDashboard = () => {
             </ResponsiveContainer>
           </div>
         </div>
+
+        {/* Low Stock Alert Rail */}
+        {lowStockProducts.length > 0 && (
+          <div className="bg-amber-50/60 rounded-2xl border border-amber-200 shadow-sm p-5 animate-fade-in">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold">
+                  <FiAlertCircle className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-outfit font-bold text-gray-900 text-sm sm:text-base">
+                    Low Stock &amp; Restock Alerts
+                  </h3>
+                  <p className="text-xs text-amber-900/80">
+                    {lowStockProducts.length} product{lowStockProducts.length === 1 ? "" : "s"} have &le; 3 units left in warehouse
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate("/admin/products")}
+                className="text-xs font-semibold text-amber-800 hover:text-amber-950 underline"
+              >
+                Manage Inventory &rarr;
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {lowStockProducts.map((p) => {
+                const thumb = p.images?.[0] || p.image || "/placeholder.jpg";
+                const isZero = p.countInStock <= 0;
+                return (
+                  <div
+                    key={p._id}
+                    onClick={() => navigate(`/admin/products/${p._id}/edit`)}
+                    className="bg-white rounded-xl border border-amber-200/70 p-3 flex items-center gap-3 hover:shadow-md transition-all cursor-pointer group"
+                  >
+                    <img
+                      src={thumb}
+                      alt={p.name}
+                      className="w-12 h-14 object-cover rounded-lg border border-gray-100 shrink-0 group-hover:scale-105 transition-transform"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-gray-900 truncate group-hover:text-primary-600">
+                        {p.name}
+                      </p>
+                      <p className="text-[11px] text-gray-400">
+                        {p.category} {p.subcategory ? `· ${p.subcategory}` : ""}
+                      </p>
+                      <div className="flex items-center justify-between mt-1">
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            isZero
+                              ? "bg-red-100 text-red-700"
+                              : "bg-amber-100 text-amber-800"
+                          }`}
+                        >
+                          {isZero ? "OUT OF STOCK" : `${p.countInStock} LEFT`}
+                        </span>
+                        <span className="text-xs font-bold text-gray-900 font-outfit">
+                          ₹{p.price?.toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Recent Orders */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-card overflow-hidden">

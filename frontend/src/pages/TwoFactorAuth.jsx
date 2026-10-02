@@ -37,7 +37,7 @@ const TwoFactorAuth = () => {
     try {
       await api.post("/users/2fa/send-code", { email });
       toast.success("New code sent to your email");
-    } catch (error) {
+    } catch {
       toast.error("Failed to resend code");
     }
   };

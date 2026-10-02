@@ -50,7 +50,7 @@ const UserDetailModal = ({ userId, onClose, onRefresh }) => {
       }
     };
     fetchUser();
-  }, [userId]);
+  }, [userId, onClose]);
 
   const handleStatus = async (status) => {
     setActionLoading("status");
@@ -369,6 +369,10 @@ const AdminUsers = () => {
   const [selectedIds, setSelectedIds] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
 
+  // Stable so that passing it to <UserDetailModal> does not invalidate that
+  // component's fetch effect on every render of this page.
+  const closeUserModal = useCallback(() => setSelectedUser(null), []);
+
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
@@ -382,7 +386,7 @@ const AdminUsers = () => {
       setUsers(data.users || []);
       setTotalPages(data.pages || 1);
       setTotal(data.total || 0);
-    } catch (err) {
+    } catch {
       toast.error("Failed to load users");
     } finally {
       setLoading(false);
@@ -662,7 +666,7 @@ const AdminUsers = () => {
       {selectedUser && (
         <UserDetailModal
           userId={selectedUser}
-          onClose={() => setSelectedUser(null)}
+          onClose={closeUserModal}
           onRefresh={fetchUsers}
         />
       )}
