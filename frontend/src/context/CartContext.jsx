@@ -4,6 +4,7 @@
    non-component exports here are constants, so fast refresh is unaffected. */
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { readCart, writeCart } from "../utils/storage";
+import { effectiveUnitPrice } from "../utils/pricing";
 
 const CartContext = createContext(null);
 
@@ -71,7 +72,9 @@ export const CartProvider = ({ children }) => {
           {
             _id: product._id,
             name: product.name,
-            price: Number(product.price) || 0,
+            price: effectiveUnitPrice(product),
+            originalPrice: Number(product.price) || 0,
+            discount: Number(product.discount) || 0,
             image: product.image,
             countInStock: available,
             category: product.category,

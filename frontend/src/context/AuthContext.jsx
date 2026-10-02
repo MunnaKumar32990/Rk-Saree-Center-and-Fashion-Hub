@@ -79,13 +79,18 @@ export const AuthProvider = ({ children }) => {
   const isAdmin = Boolean(userInfo?.isAdmin);
   const isLoggedIn = Boolean(userInfo?.token);
 
-  // Keep multiple tabs consistent.
+  // Keep multiple tabs consistent + handle local session expiry.
   useEffect(() => {
     const onStorage = (e) => {
       if (e.key === "userInfo") setUserInfo(readUser());
     };
+    const onExpired = () => setUserInfo(null);
     window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    window.addEventListener("auth:session-expired", onExpired);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("auth:session-expired", onExpired);
+    };
   }, []);
 
   const value = useMemo(

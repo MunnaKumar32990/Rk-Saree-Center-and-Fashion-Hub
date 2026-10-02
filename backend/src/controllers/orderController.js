@@ -347,9 +347,11 @@ export const addOrderItems = asyncHandler(async (req, res) => {
     );
   }
 
-  for (const item of verifiedItems) {
-    Product.updateOne({ _id: item.product }, { $inc: { soldCount: item.qty } }).catch(() => {});
-  }
+  await Promise.all(
+    verifiedItems.map((item) =>
+      Product.updateOne({ _id: item.product }, { $inc: { soldCount: item.qty } }).catch(() => {})
+    )
+  );
 
   res.status(201).json({
     ...order.toJSON(),
@@ -604,7 +606,7 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
 });
 
 /** Fan out in-app + email notifications for a status change. */
-function notifyStatusChange(order, status) {
+async function notifyStatusChange(order, status) {
   const types = {
     Packed: "order_packed",
     Shipped: "order_shipped",
@@ -622,14 +624,14 @@ function notifyStatusChange(order, status) {
   const msg = messages[status];
   if (!msg) return;
 
-  createNotification({
+  await createNotification({
     userId: order.user,
     type: types[status],
     title: msg[0],
     message: msg[1],
     link: `/order/${order._id}`,
     order: order._id,
-  });
+  }).catch(() => {});
 
   if (["Packed", "Shipped", "Out for Delivery", "Delivered"].includes(status)) {
     User.findById(order.user)

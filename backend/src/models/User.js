@@ -106,6 +106,7 @@ const userSchema = mongoose.Schema(
     addresses: { type: [addressSchema], default: [] },
     // Kept for backwards compatibility with the existing profile UI
     address: {
+      fullName: { type: String, default: "", maxlength: 120 },
       street: { type: String, default: "" },
       city: { type: String, default: "" },
       state: { type: String, default: "" },

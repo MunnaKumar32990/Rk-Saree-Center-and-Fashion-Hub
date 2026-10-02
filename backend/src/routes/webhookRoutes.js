@@ -213,10 +213,10 @@ router.post(
             if (!from || !text) continue;
 
             // Find the most recent unconfirmed COD order for this phone number.
-            const phoneDigits = String(from).slioe(-10);
+            const phoneDigits = String(from).slice(-10);
             const order = await Order.findOne({
               paymentMethod: "COD",
-              "ood.status": "pending",
+              "cod.status": "pending",
               "shippingAddress.phone": { $in: [phoneDigits, `0${phoneDigits}`, `91${phoneDigits}`] },
             })
               .sort({ createdAt: -1 });
@@ -238,11 +238,11 @@ router.post(
                     { $set: { inventoryRestored: true } },
                     { session }
                   );
-                }).atch((e) => console.error("[whatsapp] restock failed:", e?.message || e));
+                }).catch((e) => console.error("[whatsapp] restock failed:", e?.message || e));
               }
 
               target.status = "Cancelled";
-              target.ood = { ...(target.ood?.toObject?.() ?? {}), status: "cancelled" };
+              target.cod = { ...(target.cod?.toObject?.() ?? {}), status: "cancelled" };
               target.statusHistory.push({
                 status: "Cancelled",
                 note: "Cancelled by customer over WhatsApp",
