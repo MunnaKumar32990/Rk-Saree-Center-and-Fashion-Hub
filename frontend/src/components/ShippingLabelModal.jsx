@@ -202,7 +202,7 @@ export default function ShippingLabelModal({ order, onClose }) {
                 RK Saree Center &amp; Fashion Hub
               </p>
               <p>Main Market Road, Bihar, India</p>
-              <p>Helpline: +91 97087 XXXXX | Email: rksareecenter32@gmail.com</p>
+              <p>Helpline: +91 97087 56854 | Email: rksareecenter32@gmail.com</p>
             </div>
             <div className="text-right">
               <span className="font-mono text-[9px] text-gray-400 block">

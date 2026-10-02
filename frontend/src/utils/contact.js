@@ -8,13 +8,13 @@ export const BUSINESS_CONTACT = {
   name: "RK Saree Center & Fashion Hub",
   address: "Main Market, Ramgarhwa, Motihari, Bihar – 845433",
   email: "rksareecenter32@gmail.com",
-  phoneDisplay: import.meta.env.VITE_BUSINESS_PHONE || "+91 97087 XXXXX",
-  whatsappNumber: import.meta.env.VITE_WHATSAPP_NUMBER || "9197087XXXXX",
-  phoneRaw: import.meta.env.VITE_BUSINESS_PHONE_RAW || "9197087XXXXX",
+  phoneDisplay: import.meta.env.VITE_BUSINESS_PHONE || "+91 97087 56854",
+  whatsappNumber: import.meta.env.VITE_WHATSAPP_NUMBER || "919708756854",
+  phoneRaw: import.meta.env.VITE_BUSINESS_PHONE_RAW || "919708756854",
 };
 
 /**
- * Masks a phone number for user privacy (e.g., "+91 97087 56854" -> "+91 97087 XXXXX")
+ * Masks a phone number for user privacy (e.g., "+91 97087 56854" -> "+91 97087 56854")
  * @param {string} phone
  * @returns {string}
  */

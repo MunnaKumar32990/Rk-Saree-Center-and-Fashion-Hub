@@ -110,7 +110,7 @@ const PrivacyPolicy = () => {
               content: [
                 "For any privacy-related questions, requests, or complaints, please contact us:",
                 "📧 Email: rksareecenter32@gmail.com",
-                "📞 Phone: +91 97087 XXXXX",
+                "📞 Phone: +91 97087 56854",
                 "📍 Address: RK Saree Center, Yogapatti Main Road, Bihar 845452, India"
               ]
             }

@@ -621,7 +621,7 @@ const AdminOrders = () => {
                         RK Saree Center &amp; Fashion Hub
                       </h1>
                       <p className="text-xs text-gray-600 font-medium mt-0.5">
-                        Main Market, Ramgarhwa, Motihari, Bihar – 845433 | Contact: +91 97087 XXXXX
+                        Main Market, Ramgarhwa, Motihari, Bihar – 845433 | Contact: +91 97087 56854
                       </p>
                       <p className="text-xs font-bold text-indigo-700 tracking-wider uppercase mt-1">
                         Daily Outbound Shipment Dispatch Manifest
