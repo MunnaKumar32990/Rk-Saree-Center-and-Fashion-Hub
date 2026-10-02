@@ -5,7 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node node_modules/nodemon/bin/nodemon.js src/server.js",
+    "dev": "npx nodemon src/server.js",
     "test": "node scripts/e2e-run.mjs",
     "test:setup": "node scripts/initReplicaSet.mjs",
     "verify:users": "node verifyExistingUsers.js --confirm",
