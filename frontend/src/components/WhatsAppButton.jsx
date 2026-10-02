@@ -42,7 +42,7 @@ const WhatsAppButton = () => {
           showTooltip ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"
         }`}
       >
-        <div className="bg-white text-gray-800 text-sm font-medium px-4 py-2.5 rounded-2xl shadow-lg border border-gray-100 whitespace-nowrap max-w-[200px] text-right relative">
+        <div className="bg-white text-gray-800 text-sm font-medium px-4 py-2.5 rounded-2xl shadow-lg border border-gray-100 whitespace-nowrap w-max relative">
           💬 Chat with us on WhatsApp!
           <div className="absolute bottom-[-6px] right-5 w-3 h-3 bg-white border-r border-b border-gray-100 rotate-45" />
         </div>
