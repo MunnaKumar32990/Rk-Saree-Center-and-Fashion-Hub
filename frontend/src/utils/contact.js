@@ -19,16 +19,7 @@ export const BUSINESS_CONTACT = {
  * @returns {string}
  */
 export function maskPhoneNumber(phone) {
-  if (!phone) return "";
-  const s = String(phone).trim();
-  if (s.includes("X") || s.includes("*")) return s;
-  const digits = s.replace(/\D/g, "");
-  if (digits.length >= 10) {
-    const last10 = digits.slice(-10);
-    const prefix = s.startsWith("+") ? "+91 " : "";
-    return `${prefix}${last10.slice(0, 5)} XXXXX`;
-  }
-  return s;
+  return phone;
 }
 
 /**
