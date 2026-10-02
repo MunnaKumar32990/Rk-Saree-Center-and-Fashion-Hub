@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import Seo from "../components/Seo";
+import { getWhatsAppUrl } from "../utils/contact";
 
 /**
  * 404.
@@ -100,7 +101,7 @@ const NotFound = () => (
         </div>
 
         <a
-          href="https://wa.me/919708756854?text=Hi!%20I%20couldn't%20find%20what%20I%20was%20looking%20for%20on%20your%20website.%20Can%20you%20help%3F"
+          href={getWhatsAppUrl("Hi! I couldn't find what I was looking for on your website. Can you help?")}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 mt-8 text-green-700 text-sm font-semibold hover:underline min-h-[44px]"

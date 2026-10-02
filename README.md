@@ -221,7 +221,7 @@ Full documentation is in `backend/.env.example`. The variables that matter most:
 
 **RK Saree Center**
 📧 rksareecenter32@gmail.com
-📱 +91 97087 56854
+📱 +91 97087 XXXXX *(Masked for privacy — configurable via `VITE_BUSINESS_PHONE` / `VITE_WHATSAPP_NUMBER`)*
 
 ---
 

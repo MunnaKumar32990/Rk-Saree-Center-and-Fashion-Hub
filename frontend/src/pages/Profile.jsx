@@ -539,7 +539,7 @@ const Profile = () => {
                       type="tel"
                       required
                       maxLength={10}
-                      placeholder="e.g. 9708756854"
+                      placeholder="e.g. 9876543210"
                       value={addressForm.phone}
                       onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
                       className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"

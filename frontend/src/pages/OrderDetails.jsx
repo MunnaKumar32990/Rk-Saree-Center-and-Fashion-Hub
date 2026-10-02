@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import toast from "react-hot-toast";
+import { getWhatsAppUrl } from "../utils/contact";
 import {
   FiPackage, FiTruck, FiMapPin, FiClock,
   FiRotateCcw, FiDownload, FiChevronRight, FiAlertCircle, FiMessageCircle,
@@ -220,9 +221,9 @@ export default function OrderDetails() {
                 <FiDownload className="w-3.5 h-3.5" /> Invoice
               </button>
               <a
-                href={`https://wa.me/919708756854?text=${encodeURIComponent(
+                href={getWhatsAppUrl(
                   `Hi RK Saree Center! I need assistance with my Order #${order._id.slice(-8).toUpperCase()} (Status: ${order.status}).`
-                )}`}
+                )}
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-semibold transition-all shadow-xs"

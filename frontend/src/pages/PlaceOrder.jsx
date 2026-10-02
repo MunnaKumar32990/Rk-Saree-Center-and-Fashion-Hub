@@ -13,6 +13,7 @@ import {
   formatPrice,
 } from "../utils/pricing";
 import { readJSON, writeJSON, removeRaw, KEYS } from "../utils/storage";
+import { getWhatsAppUrl } from "../utils/contact";
 
 const STEPS = ["Cart", "Shipping", "Review"];
 
@@ -200,7 +201,7 @@ const PlaceOrder = () => {
       shippingAddress?.phone ? `Phone: ${shippingAddress.phone}` : "",
     ].filter(Boolean);
     window.open(
-      `https://wa.me/919708756854?text=${encodeURIComponent(lines.join("\n"))}`,
+      getWhatsAppUrl(lines.join("\n")),
       "_blank",
       "noopener,noreferrer"
     );

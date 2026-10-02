@@ -6,6 +6,7 @@ import { FiLock, FiLoader, FiAlertCircle, FiMessageCircle, FiShield, FiClock } f
 
 import Seo from "../components/Seo";
 import { formatPrice, formatDate } from "../utils/pricing";
+import { getWhatsAppUrl } from "../utils/contact";
 
 /**
  * Payment.
@@ -243,7 +244,7 @@ const Payment = () => {
               View my orders
             </button>
             <a
-              href="https://wa.me/919708756854?text=Hi%2C%20I%20need%20help%20with%20a%20payment%20on%20your%20website."
+              href={getWhatsAppUrl("Hi, I need help with a payment on your website.")}
               target="_blank"
               rel="noopener noreferrer"
               className="px-6 py-3 rounded-xl border border-emerald-300 text-emerald-800 font-semibold hover:bg-emerald-50 transition-all min-h-[48px] flex items-center justify-center gap-2"

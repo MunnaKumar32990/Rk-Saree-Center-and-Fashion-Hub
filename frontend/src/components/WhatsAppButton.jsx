@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import { getWhatsAppUrl } from "../utils/contact";
 
-const WHATSAPP_NUMBER = "919708756854";
 const WHATSAPP_MESSAGE = "Hi! I'm interested in your products on RK Saree & Fashion Hub. Can you help me?";
 
 const WhatsAppButton = () => {
@@ -28,7 +28,7 @@ const WhatsAppButton = () => {
 
   if (isAdmin) return null;
 
-  const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
+  const waUrl = getWhatsAppUrl(WHATSAPP_MESSAGE);
 
   return (
     <div

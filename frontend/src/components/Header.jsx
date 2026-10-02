@@ -7,6 +7,7 @@ import useDebounce from "../hooks/useDebounce";
 import LocationWidget from "./LocationWidget";
 import api from "../services/api";
 import { effectiveUnitPrice } from "../utils/pricing";
+import { BUSINESS_CONTACT, getWhatsAppUrl } from "../utils/contact";
 
 const CATEGORY_MENU = [
   {
@@ -752,12 +753,12 @@ const Header = () => {
             {/* Direct WhatsApp Customer Care */}
             <div className="pt-3 border-t border-gray-100 mt-2">
               <a
-                href="https://wa.me/919708756854?text=Hi%20RK%20Saree%20Center%2C%20I%20need%20help%20with%20an%20order"
+                href={getWhatsAppUrl("Hi RK Saree Center, I need help with an order")}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-emerald-700 transition-colors"
               >
-                <span>💬</span> WhatsApp Support (+91 97087 56854)
+                <span>💬</span> WhatsApp Support ({BUSINESS_CONTACT.phoneDisplay})
               </a>
             </div>
           </nav>

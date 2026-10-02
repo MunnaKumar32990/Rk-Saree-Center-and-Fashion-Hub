@@ -17,6 +17,7 @@ import {
 } from "../utils/pricing";
 import api from "../services/api";
 import { writeJSON, readJSON, KEYS } from "../utils/storage";
+import { getWhatsAppUrl } from "../utils/contact";
 
 const STEPS = ["Cart", "Shipping", "Payment"];
 
@@ -572,7 +573,7 @@ const Checkout = () => {
                           <span>
                             {pinState.data?.message || "We don't deliver to this PIN yet."}{" "}
                             <a
-                              href="https://wa.me/919708756854?text=Hi%20RK%20Saree%20Center%2C%20my%20PIN%20code%20is%20showing%20unserviceable%2C%20can%20you%20help%20deliver%3F"
+                              href={getWhatsAppUrl("Hi RK Saree Center, my PIN code is showing unserviceable, can you help deliver?")}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="underline font-medium"

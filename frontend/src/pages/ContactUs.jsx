@@ -1,5 +1,6 @@
 import { useState } from "react";
 import api from "../services/api";
+import { BUSINESS_CONTACT } from "../utils/contact";
 
 const ContactUs = () => {
   const [formData, setFormData] = useState({
@@ -114,8 +115,8 @@ const ContactUs = () => {
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-1">Phone</h3>
                     <p className="text-gray-600 text-sm">
-                      <a href="tel:+919708756854" className="hover:text-purple-700 transition-colors">
-                        +91 9708756854
+                      <a href={`tel:+91${BUSINESS_CONTACT.phoneRaw}`} className="hover:text-purple-700 transition-colors">
+                        {BUSINESS_CONTACT.phoneDisplay}
                       </a>
                     </p>
                   </div>

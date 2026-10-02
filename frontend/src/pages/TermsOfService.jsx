@@ -32,7 +32,7 @@ const TermsOfService = () => {
               title: "1. About Us",
               content: [
                 "RK Saree Center is a family-run clothing store based in Yogapatti, Bihar, India. We sell sarees, lehengas, kurtis, and ethnic wear online through this website.",
-                "Contact: rksareecenter32@gmail.com | +91 9708756854"
+                "Contact: rksareecenter32@gmail.com | +91 97087 XXXXX"
               ]
             },
             {
@@ -76,7 +76,7 @@ const TermsOfService = () => {
             {
               title: "6. Cancellations",
               content: [
-                "You may cancel an order before it has been shipped by contacting us at rksareecenter32@gmail.com or calling +91 9708756854.",
+                "You may cancel an order before it has been shipped by contacting us at rksareecenter32@gmail.com or calling +91 97087 XXXXX.",
                 "Once an order is shipped, it cannot be cancelled — please use the return process instead.",
                 "Prepaid orders that are cancelled before shipping will be fully refunded within 5–7 business days."
               ]
@@ -133,7 +133,7 @@ const TermsOfService = () => {
               content: [
                 "For any questions about these terms:",
                 "📧 Email: rksareecenter32@gmail.com",
-                "📞 Phone: +91 9708756854",
+                "📞 Phone: +91 97087 XXXXX",
                 "📍 RK Saree Center, Yogapatti Main Road, Bihar 845452, India",
                 "⏰ Store Hours: Mon–Sat 10AM–8PM | Sun 11AM–8PM"
               ]

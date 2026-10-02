@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { FiCheckCircle, FiXCircle, FiInfo } from "react-icons/fi";
 import Seo, { faqSchema, breadcrumbSchema } from "../components/Seo";
 import TrustBar from "../components/TrustBar";
+import { getWhatsAppUrl } from "../utils/contact";
 
 /**
  * Returns — the policy written to be read, not to be found.
@@ -156,7 +157,7 @@ const Returns = () => (
         <p className="mt-3 text-sm text-stone-600">
           Prefer to talk it through? WhatsApp us and we'll sort it in one go —{" "}
           <a
-            href="https://wa.me/919708756854?text=Hi%20RK%20Saree%20Center%2C%20I%20have%20a%20question%20about%20a%20return%20or%20exchange"
+            href={getWhatsAppUrl("Hi RK Saree Center, I have a question about a return or exchange")}
             className="text-teal-800 underline font-medium"
             target="_blank"
             rel="noopener noreferrer"

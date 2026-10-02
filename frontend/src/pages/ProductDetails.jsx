@@ -21,6 +21,7 @@ import { FaHeart } from "react-icons/fa";
 import DeliveryPincodeChecker from "../components/DeliveryPincodeChecker";
 import SareeDrapeCalculator from "../components/SareeDrapeCalculator";
 import ImageMagnifier from "../components/ImageMagnifier";
+import { getWhatsAppUrl } from "../utils/contact";
 
 /**
  * ProductDetails — the page where most conversions happen.
@@ -338,11 +339,11 @@ const ProductDetails = () => {
     product.category === "Sarees" ||
     /saree/i.test(product.name || "") ||
     /saree/i.test(product.category || "");
-  const whatsappLink = `https://wa.me/919708756854?text=${encodeURIComponent(
+  const whatsappLink = getWhatsAppUrl(
     `Hi! I'd like to know more about "${product.name}" (₹${price}).${
       soldOut ? " It's showing as out of stock — do you have another in this design?" : ""
     }`
-  )}`;
+  );
 
   return (
     <>
@@ -480,9 +481,9 @@ const ProductDetails = () => {
                   </div>
                 </div>
                 <a
-                  href={`https://wa.me/919708756854?text=${encodeURIComponent(
+                  href={getWhatsAppUrl(
                     `Namaste RK Saree Center! Can you please share a quick real daylight video or fabric close-up of "${product?.name}"? SKU: ${product?.specs?.sku || product?._id}`
-                  )}`}
+                  )}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="shrink-0 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center gap-1.5"

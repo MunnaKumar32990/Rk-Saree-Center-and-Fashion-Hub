@@ -89,7 +89,7 @@ export const organizationSchema = {
   image: DEFAULT_IMAGE,
   description:
     "Handpicked sarees, kurtis, lehengas and ethnic wear for women, men and kids. Free delivery over ₹2,000 and Cash on Delivery across India.",
-  telephone: import.meta.env.VITE_BUSINESS_PHONE || "+91-97087-56854",
+  telephone: import.meta.env.VITE_BUSINESS_PHONE || "+91 97087 XXXXX",
   email: import.meta.env.VITE_BUSINESS_EMAIL || "orders@example.com",
   currenciesAccepted: "INR",
   paymentAccepted: "Cash on Delivery, UPI, Credit Card, Debit Card, Net Banking",

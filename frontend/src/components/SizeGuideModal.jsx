@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { FiX, FiInfo } from "react-icons/fi";
+import { getWhatsAppUrl } from "../utils/contact";
 
 const SIZE_CHART = {
   clothing: {
@@ -135,7 +136,7 @@ const SizeGuideModal = ({ isOpen, onClose, category = "clothing" }) => {
           <div className="mt-5 bg-amber-50 border border-amber-100 rounded-xl p-4">
             <p className="text-sm text-amber-800">
               💡 <strong>Tip:</strong> If you're between sizes, we recommend sizing up for a comfortable fit.
-              Still unsure? <a href="https://wa.me/919708756854" target="_blank" rel="noopener noreferrer" className="underline font-semibold">Chat with us on WhatsApp</a> for personalized help!
+              Still unsure? <a href={getWhatsAppUrl("Hi! I need help with sizing on RK Saree Center.")} target="_blank" rel="noopener noreferrer" className="underline font-semibold">Chat with us on WhatsApp</a> for personalized help!
             </p>
           </div>
         </div>
