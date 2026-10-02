@@ -1,4 +1,5 @@
 import Order from "../models/Order.js";
+import User from "../models/User.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import {
   getRazorpay,
@@ -210,9 +211,10 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     order: order._id,
   });
 
-  sendOrderConfirmation(order, await import("../models/User.js").then((m) => m.default.findById(order.user))).catch(
-    () => {}
-  );
+  const customer = await User.findById(order.user).catch(() => null);
+  if (customer) {
+    await sendOrderConfirmation(order, customer).catch(() => {});
+  }
 
   res.json({ success: true, order });
 });

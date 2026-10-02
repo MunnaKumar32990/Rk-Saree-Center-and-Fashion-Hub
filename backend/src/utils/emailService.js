@@ -150,12 +150,12 @@ export async function sendVerificationEmail(email, token, name) {
     to: email,
     subject: "Verify your email address",
     html: shell({
-      title: `Welcome, ${name}!`,
+      title: `Welcome, ${escapeHtml(name || "there")}!`,
       body: `<p>Thanks for shopping with us. Please confirm your email address to secure your account and get order updates.</p>
              <p style="color:#6b7280;font-size:13px;">This link expires in 24 hours.</p>`,
       cta: button("Verify my email", url),
     }),
-    text: `Hi ${name}, verify your email: ${url} (expires in 24 hours)`,
+    text: `Hi ${name || "there"}, verify your email: ${url} (expires in 24 hours)`,
   });
 }
 
@@ -166,12 +166,12 @@ export async function sendPasswordResetEmail(email, token, name) {
     subject: "Reset your password",
     html: shell({
       title: "Password reset",
-      body: `<p>Hi ${name},</p>
+      body: `<p>Hi ${escapeHtml(name || "there")},</p>
              <p>We received a request to reset your password. This link expires in <strong>1 hour</strong>.</p>
              <p>If you didn't request this, you can safely ignore this email — your password stays unchanged.</p>`,
       cta: button("Choose a new password", url),
     }),
-    text: `Hi ${name}, reset your password: ${url} (expires in 1 hour)`,
+    text: `Hi ${name || "there"}, reset your password: ${url} (expires in 1 hour)`,
   });
 }
 
@@ -181,7 +181,7 @@ export async function send2FACode(email, code, name) {
     subject: `${code} is your verification code`,
     html: shell({
       title: "Your verification code",
-      body: `<p>Hi ${name}, enter this code to finish signing in:</p>
+      body: `<p>Hi ${escapeHtml(name || "there")}, enter this code to finish signing in:</p>
              <p style="margin:20px 0;padding:16px 20px;background:#f3f4f6;border-radius:10px;text-align:center;">
                <span style="font-size:30px;font-weight:700;letter-spacing:9px;color:${BRAND_COLOR};">${escapeHtml(code)}</span>
              </p>

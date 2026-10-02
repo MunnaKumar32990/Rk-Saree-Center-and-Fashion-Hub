@@ -248,6 +248,12 @@ export const validateCoupon = asyncHandler(async (req, res) => {
 
   res.json({
     valid: true,
+    code: result.coupon.code,
+    discount: result.discount,
+    discountAmount: result.discount,
+    discountType: result.coupon.discountType,
+    discountValue: result.coupon.discountValue,
+    description: result.coupon.description,
     coupon: {
       _id: result.coupon._id,
       code: result.coupon.code,
@@ -255,7 +261,6 @@ export const validateCoupon = asyncHandler(async (req, res) => {
       discountValue: result.coupon.discountValue,
       description: result.coupon.description,
     },
-    discountAmount: result.discount,
     message: result.message,
   });
 });

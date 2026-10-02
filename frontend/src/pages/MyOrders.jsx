@@ -16,13 +16,36 @@ const STATUS_COLORS = {
 const MyOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    let active = true;
     api.get("/orders/myorders")
-      .then(({ data }) => setOrders(data))
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
+      .then(({ data }) => {
+        if (active) setOrders(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        if (active) {
+          console.error(err);
+          const msg = err.response?.data?.message || err.friendlyMessage || "Failed to load orders. Please try again.";
+          setError(msg);
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [reloadKey]);
+
+  const handleRetry = () => {
+    setLoading(true);
+    setError("");
+    setReloadKey((k) => k + 1);
+  };
 
   if (loading) return <PageLoader text="Loading your orders..." />;
 
@@ -36,7 +59,19 @@ const MyOrders = () => {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {orders.length === 0 ? (
+        {error ? (
+          <div className="text-center py-20 bg-white rounded-2xl border border-red-100 p-8 shadow-card">
+            <div className="text-6xl mb-4">⚠️</div>
+            <h2 className="font-outfit text-2xl font-bold text-gray-800 mb-2">Unable to load orders</h2>
+            <p className="text-gray-500 mb-6">{error}</p>
+            <button
+              onClick={handleRetry}
+              className="inline-block bg-primary-600 text-white font-bold px-8 py-3 rounded-2xl hover:bg-primary-700 transition-all shadow-md"
+            >
+              Try Again
+            </button>
+          </div>
+        ) : orders.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-7xl mb-4">📦</div>
             <h2 className="font-outfit text-2xl font-bold text-gray-800 mb-2">No orders yet</h2>

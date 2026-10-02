@@ -140,6 +140,9 @@ const userSchema = mongoose.Schema(
 userSchema.index({ phone: 1 });
 userSchema.index({ status: 1, createdAt: -1 });
 userSchema.index({ wishlist: 1 });
+userSchema.index({ emailVerificationToken: 1 }, { sparse: true });
+userSchema.index({ passwordResetToken: 1 }, { sparse: true });
+userSchema.index({ pendingEmailToken: 1 }, { sparse: true });
 
 // Hash password before saving
 userSchema.pre("save", async function () {

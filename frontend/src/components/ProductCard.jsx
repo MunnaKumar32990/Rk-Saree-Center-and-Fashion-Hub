@@ -52,8 +52,8 @@ const ProductCard = ({ product, delay = 0 }) => {
 
     if (soldOut) return;
 
-    if (hasSizes) {
-      // Send them to the PDP where the size can actually be chosen.
+    if (hasSizes || (Array.isArray(product.colors) && product.colors.length > 0)) {
+      // Send them to the PDP where the size or color can actually be chosen.
       navigate(`/product/${product._id}?needSize=1`);
       return;
     }
@@ -97,23 +97,25 @@ const ProductCard = ({ product, delay = 0 }) => {
       style={{ animationDelay: `${delay}ms` }}
     >
       <div className="h-full flex flex-col bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-brand-lg transition-all duration-300 border border-gray-100/80 relative">
-        {hasDiscount && (
-          <div className="absolute top-3 left-3 z-20 bg-accent-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-            −{product.discount}%
-          </div>
-        )}
+        <div className="absolute top-3 left-3 z-20 flex flex-col gap-1.5 items-start pointer-events-none">
+          {hasDiscount && (
+            <span className="bg-accent-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-xs">
+              −{product.discount}%
+            </span>
+          )}
 
-        {lowStock && (
-          <div className="absolute top-3 left-3 z-20 bg-amber-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-            Only {stock} left
-          </div>
-        )}
+          {lowStock && (
+            <span className="bg-amber-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-xs">
+              Only {stock} left
+            </span>
+          )}
 
-        {soldOut && (
-          <div className="absolute top-3 left-3 z-20 bg-stone-700 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-            Sold out
-          </div>
-        )}
+          {soldOut && (
+            <span className="bg-stone-700 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-xs">
+              Sold out
+            </span>
+          )}
+        </div>
 
         <button
           type="button"

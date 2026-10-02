@@ -338,11 +338,11 @@ export const addOrderItems = asyncHandler(async (req, res) => {
   });
 
   if (paymentMethod === "COD") {
-    initiateCodConfirmation(order, req.user).catch((e) =>
+    await initiateCodConfirmation(order, req.user).catch((e) =>
       console.error("[cod] initiate failed:", e?.message || e)
     );
   } else {
-    sendOrderConfirmation(order, req.user).catch((e) =>
+    await sendOrderConfirmation(order, req.user).catch((e) =>
       console.error("[email] order confirmation failed:", e?.message || e)
     );
   }
@@ -634,9 +634,12 @@ async function notifyStatusChange(order, status) {
   }).catch(() => {});
 
   if (["Packed", "Shipped", "Out for Delivery", "Delivered"].includes(status)) {
-    User.findById(order.user)
-      .then((user) => user && sendOrderStatusUpdate(order, user, status))
-      .catch(() => {});
+    try {
+      const user = await User.findById(order.user);
+      if (user) await sendOrderStatusUpdate(order, user, status);
+    } catch (e) {
+      console.error("[email] status update failed:", e?.message || e);
+    }
   }
 }
 
@@ -1354,7 +1357,7 @@ export const updateReturnRequest = asyncHandler(async (req, res) => {
     });
     await order.save();
 
-    sendRefundEmail(order, await User.findById(order.user), amount).catch(() => {});
+    await sendRefundEmail(order, await User.findById(order.user), amount).catch(() => {});
   }
 
   if (status === "Rejected") {
@@ -1492,7 +1495,7 @@ export const cancelOrder = asyncHandler(async (req, res) => {
     order: order._id,
   });
 
-  sendCancellationEmail(cancelled, await User.findById(order.user)).catch(() => {});
+  await sendCancellationEmail(cancelled, await User.findById(order.user)).catch(() => {});
 
   res.json({
     message: "Order cancelled successfully",

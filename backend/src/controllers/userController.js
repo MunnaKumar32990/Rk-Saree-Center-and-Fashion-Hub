@@ -537,8 +537,8 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
     user.pendingEmailToken = hashToken(pendingEmailToken);
     user.pendingEmailExpires = Date.now() + 24 * 60 * 60 * 1000;
     emailChangePending = true;
-    sendVerificationEmail(newEmail, pendingEmailToken, user.name);
-    sendEmailChangeAlert(previousEmail, newEmail);
+    await sendVerificationEmail(newEmail, pendingEmailToken, user.name).catch(() => {});
+    await sendEmailChangeAlert(previousEmail, newEmail).catch(() => {});
   }
 
   if (body.address) {

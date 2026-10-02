@@ -47,17 +47,17 @@ const Cart = () => {
         cartItems: cartItems.map((i) => ({ product: i._id, qty: i.qty, price: i.price })),
       });
       const couponObj = {
-        code: data.code,
-        discount: data.discount,
-        description: data.description,
-        discountType: data.discountType,
-        discountValue: data.discountValue,
+        code: data.code || data.coupon?.code || code,
+        discount: Number(data.discount ?? data.discountAmount ?? 0),
+        description: data.description || data.coupon?.description || "",
+        discountType: data.discountType || data.coupon?.discountType || "flat",
+        discountValue: Number(data.discountValue ?? data.coupon?.discountValue ?? 0),
       };
       setAppliedCoupon(couponObj);
       writeJSON(KEYS.COUPON, couponObj);
       setCouponInput("");
       setShowCoupons(false);
-      toast.success(`Coupon ${data.code} applied! You saved ₹${data.discount} 🎉`);
+      toast.success(`Coupon ${couponObj.code} applied! You saved ₹${couponObj.discount} 🎉`);
     } catch (err) {
       const msg = err.response?.data?.message || "Invalid or inapplicable coupon code";
       setCouponError(msg);
@@ -76,7 +76,7 @@ const Cart = () => {
 
   const shippingPrice = calculateShipping(cartTotal);
   const taxPrice = calculateTax(cartTotal);
-  const couponDiscount = appliedCoupon ? appliedCoupon.discount : 0;
+  const couponDiscount = appliedCoupon ? (Number(appliedCoupon.discount) || 0) : 0;
   const orderTotal = Math.max(0, cartTotal - couponDiscount) + shippingPrice + taxPrice;
   const remaining = amountToFreeShipping(cartTotal);
 
@@ -171,7 +171,12 @@ const Cart = () => {
                       <p className="font-outfit font-bold text-gray-900">
                         ₹{(item.price * item.qty).toLocaleString("en-IN")}
                       </p>
-                      <p className="text-xs text-gray-400">₹{item.price.toLocaleString("en-IN")} each</p>
+                      <div className="flex items-center justify-end gap-1.5 text-xs text-gray-400">
+                        {item.originalPrice && item.originalPrice > item.price && (
+                          <span className="line-through">₹{item.originalPrice.toLocaleString("en-IN")}</span>
+                        )}
+                        <span>₹{item.price.toLocaleString("en-IN")} each</span>
+                      </div>
                     </div>
                   </div>
                 </div>

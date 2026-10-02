@@ -227,7 +227,7 @@ orderSchema.statics.VALID_TRANSITIONS = {
   Shipped: ["Out for Delivery"],
   "Out for Delivery": ["Delivered"],
   Delivered: ["Returned"],
-  Returned: ["Refunded"],
+  Returned: ["Refunded", "Delivered"],
   Refunded: [],
   Cancelled: [],
 };

@@ -14,7 +14,7 @@ import toast from "react-hot-toast";
 import Seo, { productSchema, breadcrumbSchema } from "../components/Seo";
 import { CodBadge, StockUrgency, DeliveryPromise, ReturnPolicySummary } from "../components/TrustBar";
 import { detailImage, thumbImage, productAlt } from "../utils/cloudinary";
-import { formatPrice, formatDate } from "../utils/pricing";
+import { effectiveUnitPrice, formatPrice, formatDate } from "../utils/pricing";
 import { recordProductView } from "../utils/pwa";
 import { FiShoppingCart, FiPackage, FiArrowLeft, FiShare2, FiCheck, FiMessageCircle, FiBell, FiHeart, FiVideo } from "react-icons/fi";
 import { FaHeart } from "react-icons/fa";
@@ -156,11 +156,7 @@ const ProductDetails = () => {
   const stock = product ? Number(product.countInStock) || 0 : 0;
   const soldOut = product ? stock <= 0 || Boolean(product.oversold) : false;
   const hasSizes = product?.sizes?.length > 0;
-  const price = product
-    ? product.discount > 0
-      ? Math.round(product.price * (1 - product.discount / 100))
-      : product.price
-    : 0;
+  const price = product ? effectiveUnitPrice(product) : 0;
   const maxQty = Math.min(stock, 10);
 
   // ── Cart ──────────────────────────────────────────────────────────────────
@@ -183,7 +179,16 @@ const ProductDetails = () => {
 
       const customServices = isSaree ? { fallPico, blouseNote: blouseNote.trim() } : null;
       const result = addToCart(
-        { ...product, countInStock: stock },
+        {
+          _id: product._id,
+          name: product.name,
+          image: product.image,
+          price: product.price,
+          discount: product.discount,
+          category: product.category,
+          subcategory: product.subcategory,
+          countInStock: stock,
+        },
         qty,
         selectedSize,
         selectedColor,
